@@ -236,7 +236,7 @@ void AxiusSSD::tick() {
         }
       }
       
-      if ((UP_DOWN_canWakeFromLockScreen && (readup() || readdwn()) || (OK_canWakeFromLockScreen && readok())) {
+      if ((UP_DOWN_canWakeFromLockScreen && (readup() || readdwn())) || (OK_canWakeFromLockScreen && readok())) {
         tomenu();
         if (disableWifiInLockScreen) {
           isWifiTurnedOff = false;
