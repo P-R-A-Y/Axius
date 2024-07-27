@@ -1,0 +1,44 @@
+lib dir: C:\Users\{YOU}\Documents\Arduino\libraries
+===================================================================
+
+Adafruit_GFX.cpp add:
+
+/**************************************************************************/
+/*!
+   @brief      Draw a mirrored PROGMEM-resident 1-bit image at the specified (x,y)
+   position, using the specified foreground color (unset bits are transparent).
+    @param    x   Top left corner x coordinate
+    @param    y   Top left corner y coordinate
+    @param    bitmap  byte array with monochrome bitmap
+    @param    w   Width of bitmap in pixels
+    @param    h   Height of bitmap in pixels
+    @param    color 16-bit 5-6-5 Color to draw with
+*/
+/**************************************************************************/
+void Adafruit_GFX::drawBitmapMirrored(int16_t x, int16_t y, uint8_t *bitmap, int16_t w,
+                                      int16_t h, uint16_t color) {
+
+  int16_t byteWidth = (w + 7) / 8; // Bitmap scanline pad = whole byte
+  uint8_t b = 0;
+
+  startWrite();
+  for (int16_t j = 0; j < h; j++, y++) {
+    for (int16_t i = w; i >= 0; i--) {
+      // Calculate the mirrored position
+      int16_t mirrored_i = w - 1 - i;
+      if (mirrored_i & 7)
+        b <<= 1;
+      else
+        b = bitmap[j * byteWidth + mirrored_i / 8];
+      if (b & 0x80)
+        writePixel(x + i, y, color);
+    }
+  }
+  endWrite();
+}
+
+===================================================================
+
+Adafruit_GFX.h add:
+void drawBitmapMirrored(int16_t x, int16_t y, uint8_t *bitmap, int16_t w,
+	                int16_t h, uint16_t color);

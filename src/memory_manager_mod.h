@@ -109,7 +109,7 @@ class MemoryManagerMod : public Mod {
 public:
   MemoryManagerMod();
   void setup() override;
-  String getName() override;
+  String getName() override { return "Options"; };
   void tick() override;
   void firsttick() override;
 
@@ -144,14 +144,10 @@ private:
   void loadSavedData();
 
   bool memoryWorking = false, fixedOnParameter = false;
-  uint8_t state = 0, cursor = 0, startpos = 0, iconanimstate = 1;
+  uint8_t state = 0, cursor = 0, startpos = 0, iconanimstate = 1, mcursor = 0, mstartpos = 0;
   unsigned long diskIconAnimTime = 0;
   const uint8_t numbytes = 1; //help compiler with choice between uint8_t requestFrom(int, int); and uint8_t requestFrom(uint8_t, uint8_t);
-  const std::vector<String> statepick {
-    "exit",
-    "settings",
-    "restart"
-  };
+  const std::vector<String> statepick {"exit", "parameters", "restart", "deepsleep test", "modules"};
 };
 
 

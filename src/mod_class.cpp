@@ -19,6 +19,6 @@ void About::tick() {
   AxiusSSD::instance->drawText(AxiusSSD::instance->deviceName, 0);
   AxiusSSD::instance->drawText("powered by Axius", 1);
   AxiusSSD::instance->drawText("Version 4.1.0", 2);
-  AxiusSSD::instance->drawText("By P1zdcRP x Visnu", 3);
+  AxiusSSD::instance->drawText("By Lancy", 3);
   if (AxiusSSD::instance->readok()) AxiusSSD::instance->tomenu();
 }

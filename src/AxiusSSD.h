@@ -22,8 +22,7 @@
 
 #include "memory_manager_mod.h"
 #include "axius_link.h"
-
-//typedef void (*ESPPL_CB_T) (esppl_frame_info *frame);
+#include "basic_modules.h"
 
 enum class State {
   startup, menu, restart, modwork, lockscreen
@@ -161,8 +160,12 @@ class AxiusSSD {
   public:
     AxiusSSD();
     void begin(String devname, MemoryChip c, float maxAfkSeconds);
-    void setFlip(bool f);
+    void setFlip(bool f) {
+      if (f) display.setRotation(2);
+      else display.setRotation(0);
+    }
     void addMod(Mod* m);
+    void addModule(Module* m);
     void setLockScreen                (void (*func)(                      ));
     void setLastPreparation           (void (*func)(                      ));
     void setIconApplyer               (void (*func)(                      ));
@@ -193,7 +196,8 @@ class AxiusSSD {
     uint8_t cursor = 0;
     uint8_t startpos = 0;
     bool showStatusBar = false;
-    bool fullDisableRender = false;
+    //bool fullDisableRender = false;
+    bool updateScreen = true;
     bool FULLPREPARED = false;
     State state = State::startup;
     uint32_t lastActionTime = 0;
@@ -204,6 +208,7 @@ class AxiusSSD {
     void tomenu();
     void toerror();
     void restart();
+    void forceRestart();
     void stopPacketListening();
     void startPacketListening();
     bool sendWifiFrame(uint8 *buf, int len);
@@ -227,6 +232,11 @@ class AxiusSSD {
     void esppl_init(void (*cb)(esppl_frame_info *info));
     void esppl_sniffing_start();
     void esppl_sniffing_stop();
+
+    GyroscopeModule gyroscope;
+    VoltmeterModule voltmeter;
+
+    std::vector<Module*> modules;
   private:
     //settings
     float maxAfkSeconds = 6000;
@@ -242,6 +252,7 @@ class AxiusSSD {
     const uint8_t afkBarWidth = 20;
     uint8_t curLogoFrame = 0;
     std::vector<Mod*> mods;
+    uint8_t curModule = 0;
 
     void (*renderInPSM)();
     void (*onLastPreparation)();

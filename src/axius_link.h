@@ -28,7 +28,7 @@ private:
   };
   std::vector<Device> nearbyDevices;
   BeaconRequestPacket finalBeaconPacket;
-  std::vector<String> parameters {"call restart()", "call tomenu()", "test1", "test2", "test3"};
+  std::vector<String> parameters {"call restart()", "call tomenu()", "test", "test2", "test3"};
   std::vector<String> curparameters;
 
   void processPacket(uint8_t id, uint8_t* packet);

@@ -1,15 +1,7 @@
 
 # Axius
 
-This is core library for my arduino devices and projects which are created on esp8266-like boards with SSD1306 displays. Its not intended for public use, but I will not stop you. You can also use this code as an example
-
-## What it can
-
- - Gives the project the structure of a list of mini-programs called "mod"
- - Makes it easier to work with text rendering on the screen
- - Simplifies the work with receiving and sending wifi frames
- - It has its own protocol that works similarly to wifi but is more simplified. Designed for remote control of other devices running on Axius
- - staring at this code makes you want to say that this is a waste of computing power (remeber, i created it for my own and dont care about this buzzy shit)
+This is core library for my arduino based devices and projects which are created on esp8266-like boards with SSD1306 displays
 
 ## Example of raw-launch of this library
 

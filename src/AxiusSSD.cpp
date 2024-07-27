@@ -8,24 +8,25 @@ extern "C" {
   int  wifi_send_pkt_freedom(uint8 *buf, int len, bool sys_seq);
 }
 
+void AxiusSSD::addModule(Module* m) {modules.push_back(m);}
 AxiusSSD::AxiusSSD() : display(Adafruit_SSD1306(128, 64, &Wire, -1)) {}
-
 AxiusSSD* AxiusSSD::instance = nullptr;
-
 void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds) {
   deviceName = devname;
   chip = c;
   maxAfkSeconds = nmaxAfkSeconds;
   while (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println(F("SSD1306 screen allocation failed"));
-    delay(300);
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(300);
-    digitalWrite(LED_BUILTIN, LOW);
+    delay(50);
+    ESP.restart();
   }
+  display.clearDisplay();
   display.display();
-  delay(5);
 
+  for (uint8_t i = 0; i < modules.size(); i++) {
+    modules[i]->connect();
+  }
+  
   if (mods.size() == 0) {
     mods.push_back(&MEM);
     mods.push_back(&al);
@@ -36,11 +37,6 @@ void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds) {
     mods.push_back(&a);
   }
   instance = this;
-}
-
-void AxiusSSD::setFlip(bool f) {
-  if (f) display.setRotation(2);
-  else display.setRotation(0);
 }
 
 void AxiusSSD::drawTextSelector(String text, uint8_t row, bool isselected) {
@@ -146,8 +142,6 @@ void AxiusSSD::endRender() {
   if (!fullDisableRender) {
     if (millis() - lastActionTime > maxAfkSeconds) {
       state = State::lockscreen;
-    } else {
-      al.supertick();
     }
 
     updateStatusBar();
@@ -155,10 +149,17 @@ void AxiusSSD::endRender() {
     display.clearDisplay();
   }
 
+  al.supertick();
   resetbuttons();
+  updateScreen = false;
 }
 
 void AxiusSSD::tick() {
+  if (FULLPREPARED && modules.size() > 0) {
+    if (++curModule >= modules.size()) curModule = 0;
+    modules[curModule] -> update();
+    modules[curModule] -> updated = true;
+  }
   switch (state) {
     case State::startup:
       if (HPS == 0) {
@@ -197,9 +198,9 @@ void AxiusSSD::tick() {
         }
       }
       if (readok()) {
-        mods[cursor] -> firsttick();
         state = State::modwork;
         MEM.setParameterByte("cursor", cursor);
+        mods[cursor] -> firsttick();
       }
       for (uint8_t i = startpos; i < startpos+5; i++) {
         if (i >= mods.size()) return;
@@ -290,7 +291,7 @@ void AxiusSSD::tomenu() {  ///-------------------------------------------ESPPL U
   for (uint8_t i = 0; i < MEM.getParameterByte("cursor", modsCount()-1); i++) {
     if (++cursor-startpos > 4) startpos++;
   }
-  fullDisableRender = false;
+  updateScreen = true;
 }
 
 bool AxiusSSD::sendWifiFrame(uint8 *buf, int len) {
@@ -304,6 +305,10 @@ void AxiusSSD::toerror() {
 
 void AxiusSSD::restart() {
   state = State::restart;
+}
+
+void AxiusSSD::forceRestart() {
+  
 }
 
 void AxiusSSD::stopPacketListening() {  ///-------------------------------------------ESPPL USED HERE

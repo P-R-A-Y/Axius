@@ -15,10 +15,6 @@ void MemoryManagerMod::firsttick() {
   //loadSavedData();
 }
 
-String MemoryManagerMod::getName()  {
-  return "MEMORY_MANAGER";
-}
-
 void MemoryManagerMod::checkmem() {
   Wire.begin();
   Wire.beginTransmission(EEPROM_ADDR);
@@ -111,10 +107,15 @@ void MemoryManagerMod::tick() {
       if (AxiusSSD::instance->readok()) {
         if (cursor == 0) AxiusSSD::instance->tomenu();
         else if (cursor == 2) AxiusSSD::instance->restart();
-        else {
+        else if (cursor == 1) {
           state = cursor;
           cursor = 0;
           startpos = 0;
+        } else if (cursor == 3) {
+          Serial.println("sleep");
+          ESP.deepSleep(1e6);
+        } else if (cursor == 4) {
+          state = 2;
         }
       }
       for (byte i = startpos; i < startpos + (statepick.size() < 3 ? statepick.size() : 3); i++) {
@@ -125,6 +126,27 @@ void MemoryManagerMod::tick() {
     AxiusSSD::instance->drawText("Fatal memory error", 0);
     AxiusSSD::instance->drawText("OK - restart", 1);
     if (AxiusSSD::instance->readok()) AxiusSSD::instance->restart();
+  } else if (state == 2) {
+    AxiusSSD::instance->drawText("ok - exit", 0);
+    AxiusSSD::instance->drawText("list of modules", 1);
+
+    if (AxiusSSD::instance->readok()) state = 0;
+
+    if (AxiusSSD::instance->readdwn()) {
+      if (mcursor < AxiusSSD::instance->modules.size()-1) {
+        mcursor++;
+        if (mcursor-mstartpos > 2) mstartpos++;
+      }
+    }
+    if (AxiusSSD::instance->readup()) {
+      if (mcursor > 0) {
+        mcursor--;
+        if (mcursor-mstartpos < 0) mstartpos--;
+      }
+    }
+    for (uint8_t i = mstartpos; i < mstartpos + (AxiusSSD::instance->modules.size() < 3 ? AxiusSSD::instance->modules.size() : 3); i++) {
+      AxiusSSD::instance->drawTextSelector(AxiusSSD::instance->modules[i]->getName(), i-mstartpos + 2, i == mcursor);
+    }
   } else if (state == 1) {
     AxiusSSD::instance->drawText("edit settings", 0);
     if (AxiusSSD::instance->readdwn()) {
