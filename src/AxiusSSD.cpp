@@ -1,5 +1,12 @@
 #include <AxiusSSD.h>
 
+volatile int encoderPos = 0, beforeEncoderPos = 0;
+volatile bool turned = false;
+uint8_t scrollSteps = 0;  
+uint32_t lastInterruptTime = 0;
+const uint32_t debounceDelay = 3;
+int scrollAlfa = 0, scrollBeta = 0;
+
 extern "C" {
   #include "user_interface.h"
   typedef void (*freedom_outside_cb_t)(uint8 status);
@@ -11,7 +18,12 @@ extern "C" {
 void AxiusSSD::addModule(Module* m) {modules.push_back(m);}
 AxiusSSD::AxiusSSD() : display(Adafruit_SSD1306(128, 64, &Wire, -1)) {}
 AxiusSSD* AxiusSSD::instance = nullptr;
-void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds) {
+void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds , const uint8_t defaultOKButton, bool isInvertButtonReadMethod) {
+  okb = defaultOKButton;
+  if (isInvertButtonReadMethod) {
+    invertButtonReadMethod = true;
+    pinMode(okb, INPUT_PULLUP);
+  }
   deviceName = devname;
   chip = c;
   maxAfkSeconds = nmaxAfkSeconds;
@@ -39,7 +51,10 @@ void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds) {
   instance = this;
 }
 
+
+
 void AxiusSSD::drawTextSelector(String text, uint8_t row, bool isselected) {
+  if (!updateScreen) return;
   uint8_t y = row*11+columnTopShift;
   if (isselected)
     display.fillCircle(3, y+3, 2, SSD1306_WHITE);
@@ -50,6 +65,7 @@ void AxiusSSD::drawTextSelector(String text, uint8_t row, bool isselected) {
 }
 
 void AxiusSSD::drawTextSelectorWithBorder(String text, uint8_t row, bool isselected, bool border) {
+  if (!updateScreen) return;
   uint8_t y = row*11+columnTopShift;
   if (isselected)
     display.fillCircle(3, y+3, 2, SSD1306_WHITE);
@@ -65,6 +81,7 @@ void AxiusSSD::drawTextSelectorWithBorder(String text, uint8_t row, bool isselec
 }
 
 void AxiusSSD::drawLoadingLine(float cur, float max, uint8_t row) {
+  if (!updateScreen) return;
   uint8_t miny = row*11+columnTopShift;
   display.drawRect(llminx, miny, llwidth, 11, SSD1306_WHITE);
   if (cur == 0) return;
@@ -78,10 +95,14 @@ void AxiusSSD::drawLoadingLine(float cur, float max, uint8_t row) {
 }
 
 void AxiusSSD::drawText(String text, uint8_t row) {
+  if (!updateScreen) return;
   uint8_t y = row*11+columnTopShift;
   display.setCursor(0,y);
   display.println(text);
 }
+
+
+
 
 void AxiusSSD::updatestatusbar() {
 
@@ -138,8 +159,37 @@ void AxiusSSD::updateStatusBar() {
   display.setFont();
 }
 
+void AxiusSSD::setButtons(bool isUsingEncoder, const uint8_t UPButtonInput, const uint8_t DOWNButtonInput, const uint8_t OKButtonInput, bool isOkFromEncoder, bool isInvertButtonReadMethod) {
+  invertButtonReadMethod = isInvertButtonReadMethod;
+  if (isUsingEncoder) {
+    useEncoder = true;
+    scrollAlfa = D5, scrollBeta = D6;
+    pinMode(UPButtonInput, INPUT_PULLUP);
+    pinMode(DOWNButtonInput, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(UPButtonInput), readEncoder, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(DOWNButtonInput), readEncoder, CHANGE);
+  } else {
+    useEncoder = false;
+    upb = UPButtonInput;
+    dwnb = DOWNButtonInput;
+    if (invertButtonReadMethod) {
+      pinMode(upb, INPUT_PULLUP);
+      pinMode(dwnb, INPUT_PULLUP);
+    }
+  }
+  if (isOkFromEncoder) {
+    //TODO
+  } else {
+    if (invertButtonReadMethod) {
+      pinMode(okb, INPUT_PULLUP);
+    }
+    okb = OKButtonInput;
+  }
+}
+
 void AxiusSSD::endRender() {
-  if (!fullDisableRender) {
+  if (updateScreen) {
+    updateScreen = false;
     if (millis() - lastActionTime > maxAfkSeconds) {
       state = State::lockscreen;
     }
@@ -147,14 +197,112 @@ void AxiusSSD::endRender() {
     updateStatusBar();
     display.display();
     display.clearDisplay();
-  }
+  }/* else {
+    Serial.println("no render!");
+  }*/
 
   al.supertick();
   resetbuttons();
-  updateScreen = false;
+}
+
+void ICACHE_RAM_ATTR readEncoder() {
+  if (millis() - lastInterruptTime > debounceDelay) {
+    static uint8_t lastState = 0;
+    uint8_t scrollState = (digitalRead(scrollAlfa) << 1) | digitalRead(scrollBeta);
+    
+    if (lastState == scrollState) return;
+    
+    switch (lastState) {
+      case 0: 
+        if (scrollState == 2) encoderPos--;
+        else if (scrollState == 1) encoderPos++;
+        break;
+      case 1: 
+        if (scrollState == 0) encoderPos--;
+        else if (scrollState == 3) encoderPos++;
+        break;
+      case 2: 
+        if (scrollState == 3) encoderPos--;
+        else if (scrollState == 0) encoderPos++;
+        break;
+      case 3: 
+        if (scrollState == 1) encoderPos--;
+        else if (scrollState == 2) encoderPos++;
+        break;
+    }
+    
+    lastState = scrollState;
+    turned = true;
+    scrollSteps++;
+  }
+
+  lastInterruptTime = millis();
+}
+
+int voltage;
+void AxiusSSD::updatebuttons() {
+  voltage = digitalRead(okb);
+  if (invertButtonReadMethod) {
+    if (voltage == LOW) {
+      if (oks == 0) oks = 1;
+    } else {
+      if (oks == 1) {
+        oks = 3;
+        lastActionTime = millis();
+      }
+    }
+  } else {
+    if (voltage == HIGH) {
+      if (oks == 0) oks = 1;
+    } else if (voltage == LOW) {
+      if (oks == 1) {
+        oks = 3;
+        lastActionTime = millis();
+      }
+    }
+  }
+  
+  if (!FULLPREPARED) return;
+
+  if (useEncoder) {
+    if (turned && scrollSteps >= 6) {
+      turned = false;
+      if (encoderPos != beforeEncoderPos) {
+        if (encoderPos > beforeEncoderPos) {
+          ups = 3;
+        } else {
+          dwns = 3;
+        }
+        lastActionTime = millis();
+        beforeEncoderPos = encoderPos;
+      }
+      scrollSteps = 0;
+    }
+  } else {
+    voltage = digitalRead(upb);
+    if (voltage == HIGH) {
+      if (ups == 0) ups = 1;
+    } else if (voltage == LOW) {
+      if (ups == 1) {
+        ups = 3;
+        lastActionTime = millis();
+      }
+    }
+    voltage = digitalRead(dwnb);
+    if (voltage == HIGH) {
+      if (dwns == 0) dwns = 1;
+    } else if (voltage == LOW) {
+      if (dwns == 1) {
+        dwns = 3;
+        lastActionTime = millis();
+      }
+    }
+  }
 }
 
 void AxiusSSD::tick() {
+  updatebuttons();
+
   if (FULLPREPARED && modules.size() > 0) {
     if (++curModule >= modules.size()) curModule = 0;
     modules[curModule] -> update();
@@ -162,6 +310,7 @@ void AxiusSSD::tick() {
   }
   switch (state) {
     case State::startup:
+      updateScreen = true;
       if (HPS == 0) {
         display.setTextColor(SSD1306_WHITE);
         display.setTextWrap(false);
@@ -185,6 +334,7 @@ void AxiusSSD::tick() {
       }
       break;
     case State::menu:
+      updateScreen = true;
       if (readdwn()) {
         if (cursor < mods.size()-1) {
           cursor++;
@@ -201,6 +351,7 @@ void AxiusSSD::tick() {
         state = State::modwork;
         MEM.setParameterByte("cursor", cursor);
         mods[cursor] -> firsttick();
+        firstOperationalTick = true;
       }
       for (uint8_t i = startpos; i < startpos+5; i++) {
         if (i >= mods.size()) return;
@@ -208,18 +359,22 @@ void AxiusSSD::tick() {
       }
       break;
     case State::modwork:
+      if (firstOperationalTick) {
+        updateScreen = true;
+        firstOperationalTick = false;
+      }
       mods[cursor] -> tick();
       lastActionTime = millis();
       break;
     case State::restart:
+      updateScreen = true;
       drawText("restart", 3);
       display.display();
       delay(1000);
       ESP.restart();
       break;
     case State::lockscreen:
-      //drawText("AFK", -1);
-
+      updateScreen = true;
       if (isPSMAnimationOverrided()) {
         renderInPSM();
       } else {
@@ -247,6 +402,7 @@ void AxiusSSD::tick() {
       break;
     default:
       state = State::restart;
+      break;
   }
 }
 
@@ -281,9 +437,10 @@ void AxiusSSD::resetbuttons() {
   if (oks == 3) oks = 0;
 }
 
-void AxiusSSD::tomenu() {  ///-------------------------------------------ESPPL USED HERE
+void AxiusSSD::tomenu() {
   state = State::menu;
   showStatusBar = true;
+  updateScreen = true;
   esppl_set_channel(ESPPL_CHANNEL_MAX);
   startPacketListening();
   cursor = 0;
@@ -526,6 +683,7 @@ void AxiusSSD::esppl_buf_to_info(uint8_t *frame, signed rssi, uint16_t len) {
 
 void AxiusSSD::esppl_set_channel(int channel) {
   wifi_set_channel(channel);
+  WiFi.channel(uint8_t(channel));
   esppl_channel = channel;
 }
 

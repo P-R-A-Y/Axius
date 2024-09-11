@@ -135,7 +135,7 @@ public:
   BoolParameter exit       {"exit", false};
   BoolParameter version    {"v1?", false};
   ByteParameter cs         {"cursor", 0};
-  ByteParameter devid      {"deviceId", 0};
+  ByteParameter devid      {"deviceId", random(256)};
 
   std::vector<Parameter*> settings { &exit, &version, &cs, &devid };
 

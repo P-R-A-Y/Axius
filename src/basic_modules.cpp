@@ -5,8 +5,17 @@ GyroscopeModule::GyroscopeModule() {
 
 void GyroscopeModule::update() {
   if (!isConnected()) return;
-  mpu.getEvent(&rotation, &velocity, &t);
+  mpu.getEvent(&rotation, &velocity, &t); //gyro and acceleration flipped
   temperature = t.temperature;
+  float deltaX = abs(rotation.acceleration.x - prevX);
+  float deltaY = abs(rotation.acceleration.y - prevY);
+  float deltaZ = abs(rotation.acceleration.z - prevZ);
+  prevX = rotation.acceleration.x;
+  prevY = rotation.acceleration.y;
+  prevZ = rotation.acceleration.z;
+  float shakeMagnitude = sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+  shakeLevel = mapShakeLevel(shakeMagnitude);
+  //Serial.println(shakeLevel);
 }
 
 void GyroscopeModule::connect() {

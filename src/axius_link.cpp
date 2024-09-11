@@ -1,5 +1,6 @@
 #include "axius_link.h"
 #include <AxiusSSD.h>
+extern AxiusSSD axius;
 
 String AxiusLink::getName() {return "AxiusLink["+String(nearbyDevices.size())+"]";};
 
@@ -7,31 +8,33 @@ void AxiusLink::firsttick() {
 
 };
 void AxiusLink::setup() {
-  finalBeaconPacket.senderId = AxiusSSD::instance->MEM.getParameterByte("deviceId", 255);
+  finalBeaconPacket.broadcasterId = axius.MEM.getParameterByte("deviceId", 255);
+  finalBeaconPacket.devtype = axius.deviceName;
 };
 void AxiusLink::tick() {
+  axius.updateScreen = true;
   if (state == 0) {
     if (nearbyDevices.size() == 0) {
-      if (AxiusSSD::instance->readok()) AxiusSSD::instance->tomenu();
-      AxiusSSD::instance->drawText("there is nothing", 0);
-      AxiusSSD::instance->drawText("near you", 1);
+      if (axius.readok()) axius.tomenu();
+      axius.drawText("there is nothing", 0);
+      axius.drawText("near you", 1);
 
-      AxiusSSD::instance->drawText("ok - leave", 4);
+      axius.drawText("ok - leave", 4);
     } else {
       //do not copypaste this code
       if (scursor > nearbyDevices.size()) scursor = nearbyDevices.size();
-      if (AxiusSSD::instance->readdwn()) {
+      if (axius.readdwn()) {
         if (scursor < nearbyDevices.size()) {
           scursor++;
           if (scursor-sstartpos > 4) sstartpos++;
         }
       }
-      if (AxiusSSD::instance->readup() && scursor > 0) {
+      if (axius.readup() && scursor > 0) {
         scursor--;
         if (scursor-sstartpos < 0) sstartpos--;
       }
-      if (AxiusSSD::instance->readok()) {
-        if (scursor == 0) AxiusSSD::instance->tomenu();
+      if (axius.readok()) {
+        if (scursor == 0) axius.tomenu();
         else {
           pcursor = 0;
           pstartpos = 0;
@@ -43,37 +46,37 @@ void AxiusLink::tick() {
       }
       for (uint8_t i = sstartpos; i < sstartpos+5; i++) {
         if (i > nearbyDevices.size()) break;
-        if (i == 0) AxiusSSD::instance->drawTextSelector("exit", i-sstartpos, i == scursor);
-        else AxiusSSD::instance->drawTextSelector(nearbyDevices[i-1].stype, i-sstartpos, i == scursor);
+        if (i == 0) axius.drawTextSelector("exit", i-sstartpos, i == scursor);
+        else axius.drawTextSelector(nearbyDevices[i-1].stype, i-sstartpos, i == scursor);
       }
       //end
     }
   } else if (state == 1) {
-    AxiusSSD::instance->drawText("loading parameters", 0);
-    AxiusSSD::instance->drawText("ok - exit", 1);
-    if (AxiusSSD::instance->readok()) {
+    axius.drawText("loading parameters", 0);
+    axius.drawText("ok - exit", 1);
+    if (axius.readok()) {
       state = 0;
-      AxiusSSD::instance->tomenu();
+      axius.tomenu();
     }
   } else if (state == 2) {
-    AxiusSSD::instance->drawText("selected "+nearbyDevices[scursor-1].stype, 0);
+    axius.drawText("selected "+nearbyDevices[scursor-1].stype, 0);
     if (pcursor > curparameters.size()) {
       pcursor = 0;
       pstartpos = 0;
     }
-    if (AxiusSSD::instance->readdwn()) {
+    if (axius.readdwn()) {
       if (pcursor < curparameters.size()) {
         pcursor++;
         if (pcursor-pstartpos > 3) pstartpos++;
       }
     }
-    if (AxiusSSD::instance->readup() && pcursor > 0) {
+    if (axius.readup() && pcursor > 0) {
       pcursor--;
       if (pcursor-pstartpos < 0) pstartpos--;
     }
-    if (AxiusSSD::instance->readok()) {
+    if (axius.readok()) {
       if (pcursor == 0) {
-        AxiusSSD::instance->tomenu();
+        axius.tomenu();
         state = 0;
       } else {
         ParameterClickPacket pcp;
@@ -85,8 +88,8 @@ void AxiusLink::tick() {
     }
     for (uint8_t i = pstartpos; i < pstartpos+4; i++) {
       if (i > curparameters.size()) break;
-      if (i == 0) AxiusSSD::instance->drawTextSelector("exit", i - pstartpos + 1, i == pcursor);
-      else AxiusSSD::instance->drawTextSelector(curparameters[i-1], i - pstartpos + 1, i == pcursor);
+      if (i == 0) axius.drawTextSelector("exit", i - pstartpos + 1, i == pcursor);
+      else axius.drawTextSelector(curparameters[i-1], i - pstartpos + 1, i == pcursor);
     }
   }
 };
@@ -138,7 +141,8 @@ void AxiusLink::supertick() {
 
   if (nearbyDevices.size() > 0) {
     for (auto it = nearbyDevices.begin(); it != nearbyDevices.end();) {
-      if (millis() - it->lastTimeSeen > 5000) {
+      if (millis() - it->lastTimeSeen > 2000) {
+        if ((state == 1 || state == 2) && nearbyDevices[scursor-1].id == it->id) state = 0;
         it = nearbyDevices.erase(it);
       } else ++it;
     }
@@ -156,31 +160,42 @@ void AxiusLink::processPacket(uint8_t id, uint8_t* packet) {
   if (id == BEACONREQUEST) {
     BeaconRequestPacket p;
     p.setData(packet);
-    if (p.senderId == AxiusSSD::instance->MEM.getParameterByte("deviceId", 255)) return;
+    if (p.senderId == axius.MEM.getParameterByte("deviceId", 255)) return;
     BeaconResponsePacket rp;
-    rp.responderId = AxiusSSD::instance->MEM.getParameterByte("deviceId", 255);
-    rp.devtype = AxiusSSD::instance->deviceName;
+    rp.responderId = axius.MEM.getParameterByte("deviceId", 255);
+    rp.devtype = axius.deviceName;
     sendPacket(&rp);
-  } else if (id == BEACONRESPONSE) {
-    BeaconResponsePacket respp;
-    respp.setData(packet);
+  } else if (id == BEACONRESPONSE || id == BEACONBROADCAST) {
+    String devtype;
+    uint8_t devid;
+    if (id == BEACONBROADCAST) {
+      BeaconBroadcastPacket brp;
+      brp.setData(packet);
+      devtype = brp.devtype;
+      devid = brp.broadcasterId;
+    } else {
+      BeaconResponsePacket respp;
+      respp.setData(packet);
+      devtype = respp.devtype;
+      devid = respp.responderId;
+    }
     if (nearbyDevices.size() > 0) {
-      for (auto dev = nearbyDevices.begin(); dev != nearbyDevices.end();) {
-        if (dev->id == respp.responderId) {
-          dev -> lastTimeSeen = millis();
+      for (auto dev = nearbyDevices.begin(); dev != nearbyDevices.end(); dev++) {
+        if (dev->id == devid) {
+          dev->lastTimeSeen = millis();
           return;
         }
       }
     }
     Device d;
-    d.id = respp.responderId;
+    d.id = devid;
     d.lastTimeSeen = millis();
-    d.stype = respp.devtype;
+    d.stype = devtype;
     nearbyDevices.push_back(d);
   } else if (id == PARAMETERSREQUEST) {
     ParametersRequestPacket parreq;
     parreq.setData(packet);
-    if (parreq.requestFromDeviceId == AxiusSSD::instance->MEM.getParameterByte("deviceId", 255)) {
+    if (parreq.requestFromDeviceId == axius.MEM.getParameterByte("deviceId", 255)) {
       ParametersUpdatePacket parupd;
       parupd.sendToDeviceId = packet[27];
       parupd.totalParameterSize = parameters.size();
@@ -192,7 +207,7 @@ void AxiusLink::processPacket(uint8_t id, uint8_t* packet) {
   } else if (id == PARAMETERSUPDATE) {
     ParametersUpdatePacket parupd;
     parupd.setData(packet);
-    if (parupd.sendToDeviceId == AxiusSSD::instance->MEM.getParameterByte("deviceId", 255) && state != 0) {
+    if (parupd.sendToDeviceId == axius.MEM.getParameterByte("deviceId", 255) && state != 0) {
       if (state == 1) state = 2;
       if (curparameters.size() != parupd.totalParameterSize) { // refill parameters
         curparameters.clear();
@@ -210,9 +225,9 @@ void AxiusLink::processPacket(uint8_t id, uint8_t* packet) {
   } else if (id == PARAMETERCLICK) {
     ParameterClickPacket pcp;
     pcp.setData(packet);
-    if (pcp.clickDeviceId == AxiusSSD::instance->MEM.getParameterByte("deviceId", 255)) {
-      if (pcp.param == 0) AxiusSSD::instance->restart();
-      else if (pcp.param == 1) AxiusSSD::instance->tomenu();
+    if (pcp.clickDeviceId == axius.MEM.getParameterByte("deviceId", 255)) {
+      if (pcp.param == 0) axius.restart();
+      else if (pcp.param == 1) axius.tomenu();
       else {
         ParametersUpdatePacket pup;
         pup.sendToDeviceId = packet[27];
@@ -236,10 +251,10 @@ void AxiusLink::sendPacket(AxiusPacket* p) {
   uint8_t newid = random(254);
   if (newid == beforesentid) newid = 255;
   packet[26] = newid; //set packet id
-  packet[27] = AxiusSSD::instance->MEM.getParameterByte("deviceId", 255); //device id
+  packet[27] = axius.MEM.getParameterByte("deviceId", 255); //device id
   p->getData(packet);
   for (uint8_t i = 0; i < 5; i++) {
-    bool sended = AxiusSSD::instance->sendWifiFrame(packet, size);
+    bool sended = axius.sendWifiFrame(packet, size);
     delay(5);
     if (sended) break;
   }

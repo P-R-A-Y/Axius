@@ -7,8 +7,8 @@ void BeaconPacketConstructor::setProperties(String name, bool wpa2, int8_t hashT
     name.replace("{nohash}", "");
     hashTagIndex = -1;
   }
-  uint8_t hashTagSize = (hashTagIndex == -1 ? 0 : 4);
-  nameSize = min(name.length() + hashTagSize, (uint) 32);
+  if (hashTagIndex == -1) nameSize = min(name.length(), (uint) 32);
+  else                    nameSize = min(name.length() + 4, (uint) 32);
   //Serial.println(name+" "+String(nameSize));
   packetSize = 109 - 32 + nameSize;
   if (!wpa2) packetSize -= 26;
@@ -29,8 +29,8 @@ void BeaconPacketConstructor::setProperties(String name, bool wpa2, int8_t hashT
   }
   if (wpa2) packet[34] = 0x31;                                                   //set wpa enabled
   else      packet[34] = 0x21;                                                   //set wpa disabled
-  memcpy(&packet[38], &name[0], nameSize - 4);                                   // set name
-  if (hashTagIndex != -1) {
+  memcpy(&packet[38], &name[0], nameSize - (hashTagIndex == -1 ? 0 : 4));                                   // set name
+  if (hashTagIndex > -1) {
     packet[38 + nameSize - 4] = ' ';
     packet[38 + nameSize - 3] = '#';
     packet[38 + nameSize - 2] = substrings[hashTagIndex];
@@ -43,7 +43,7 @@ void BeaconPacketConstructor::setProperties(String name, bool wpa2, int8_t hashT
 
 void BeaconPacketConstructor::setChannel(uint8_t c) {
   channel = c;
-  packet[82 - 38 + nameSize] = channel;
+  packet[82 - 32 + nameSize] = channel;
 };
 
 void BeaconPacketConstructor::setMac(uint8_t* mac) {

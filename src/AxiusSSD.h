@@ -156,10 +156,13 @@ const uint8_t ESPPL_DATA_RESERVED1                    = 12;
 const uint8_t ESPPL_DATA_QOS_CF_POLL                  = 13;
 const uint8_t ESPPL_DATA_QOS_CF_ACK_CF_POLL           = 14;
 
+void ICACHE_RAM_ATTR readEncoder();
+
 class AxiusSSD {
   public:
     AxiusSSD();
-    void begin(String devname, MemoryChip c, float maxAfkSeconds);
+    void begin(String devname, MemoryChip c, float maxAfkSeconds, const uint8_t defaultOKButton, bool isInvertButtonReadMethod);
+    void setButtons(bool usingEncoder, const uint8_t UPButtonInput, const uint8_t DOWNButtonInput, const uint8_t OKButtonInput, bool isOkFromEncoder, bool isInvertButtonReadMethod);
     void setFlip(bool f) {
       if (f) display.setRotation(2);
       else display.setRotation(0);
@@ -173,6 +176,7 @@ class AxiusSSD {
     void setIncomingPacketListener    (void (*func)(esppl_frame_info *info));
 
     void updatestatusbar();
+    void updatebuttons();
     void tick();
     void endRender();
     void updateStatusBar();
@@ -238,16 +242,19 @@ class AxiusSSD {
 
     std::vector<Module*> modules;
   private:
+    int upb = 0, dwnb = 0, okb = 0;
+    bool useEncoder = true;
     //settings
     float maxAfkSeconds = 6000;
     bool disableWifiInLockScreen = true;
     bool UP_DOWN_canWakeFromLockScreen = true;
     bool OK_canWakeFromLockScreen = true;
+    bool invertButtonReadMethod = false;
     //settings
     uint8_t myAddress[6] = {0xFA, 0xBA, 0xCA, 0xBA, 0x08, 0x01};
     const uint8_t llminx = 5, llwidth = 94;
     uint8_t columnTopShift = 13;
-    bool isWifiTurnedOff = false, b3 = false;
+    bool isWifiTurnedOff = false, b3 = false, firstOperationalTick = false;
     unsigned long previousMillis = 0;
     const uint8_t afkBarWidth = 20;
     uint8_t curLogoFrame = 0;

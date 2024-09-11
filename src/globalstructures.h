@@ -20,11 +20,11 @@ const char substrings[111] {
   'o','p','a','s','d','f','g','h','j','k',
   'l','z','x','c','v','b','n','m','1','3',
   '2','4','3','5','4','6','5','7','6','8',
-  '9'};
+  '0'};
 
 #pragma once
 const uint8_t beaconPacketTemplate[109] = {
-    /*  0 - 3  */ 0x80, 0x00, 0x00, 0x00,             // Type/Subtype: managment beacon frame
+    /*  0 - 3  */ 0x80, 0x00, 0x00, 0x00,             // Type/Subtype/duration/duration: managment beacon frame
     /*  4 - 9  */ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // Destination: broadcast
     /* 10 - 15 */ 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Source
     /* 16 - 21 */ 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Source

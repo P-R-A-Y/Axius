@@ -3,6 +3,7 @@
 #define PARAMETERSREQUEST 3
 #define PARAMETERSUPDATE 4
 #define PARAMETERCLICK 5
+#define BEACONBROADCAST 6
 
 #ifndef AXIUSPACKETS_H
 #define AXIUSPACKETS_H
@@ -69,6 +70,37 @@ class BeaconResponsePacket : public AxiusPacket {
     
     uint8_t getType() override {
       return BEACONRESPONSE;
+    }
+};
+
+class BeaconBroadcastPacket : public AxiusPacket {
+  public:
+    uint8_t broadcasterId;
+    String devtype;
+
+    void setData(uint8_t* PacketBuffer) override {
+      broadcasterId = PacketBuffer[28];
+      uint8_t nameLength = PacketBuffer[29];
+      uint8_t bytename[nameLength];
+      memcpy(&bytename, &PacketBuffer[30], nameLength);
+      devtype = uint8ArrayToString(bytename, nameLength);
+    }
+
+    void getData(uint8_t* targetBuffer) {
+      targetBuffer[28] = broadcasterId;
+      targetBuffer[29] = devtype.length();
+
+      uint8_t namebytes[devtype.length()];
+      stringToUint8Array(devtype, namebytes, devtype.length());
+      memcpy(&targetBuffer[30], namebytes, devtype.length());
+    }
+
+    uint8_t getSize() override {
+      return 2 + devtype.length();
+    }
+    
+    uint8_t getType() override {
+      return BEACONBROADCAST;
     }
 };
 

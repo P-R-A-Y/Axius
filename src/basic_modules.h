@@ -7,8 +7,9 @@ public:
   GyroscopeModule();
   void update() override;
   void connect() override;
+  float getShake() { return shakeLevel; };
   String getName() override {
-    if (isConnected())  return "[+] Gyroscope "+String(temperature)+"C";
+    if (isConnected())  return "[+] Gyro "+String(temperature)+"C S"+String(shakeLevel);
     else                return "[-] Gyroscope";
   };
   sensors_event_t rotation, velocity;
@@ -16,6 +17,18 @@ public:
 private:
   sensors_event_t t;
   Adafruit_MPU6050 mpu;
+  float prevX = 0, prevY = 0, prevZ = 0, shakeLevel = 0;
+  const float maxShakeThreshold = 50.0;
+  const float minShakeThreshold = 0.05;
+  float mapShakeLevel(float magnitude) {
+    if (magnitude < minShakeThreshold) {
+      return 0;
+    } else if (magnitude > maxShakeThreshold) {
+      return 1;
+    }
+
+    return (magnitude - minShakeThreshold) / (maxShakeThreshold - minShakeThreshold);
+  }
 };
 
 class VoltmeterModule : public Module {

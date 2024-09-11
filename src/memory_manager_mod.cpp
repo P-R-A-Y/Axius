@@ -83,6 +83,7 @@ uint8_t MemoryManagerMod::getStateImage() {
 }
 
 void MemoryManagerMod::tick() {
+  AxiusSSD::instance->updateScreen = true;
   if (state == 0) {
     if (error == 4) {
       AxiusSSD::instance->drawText("Dead MEM module", 0);

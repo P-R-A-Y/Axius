@@ -27,7 +27,7 @@ private:
     unsigned long lastTimeSeen;
   };
   std::vector<Device> nearbyDevices;
-  BeaconRequestPacket finalBeaconPacket;
+  BeaconBroadcastPacket finalBeaconPacket;
   std::vector<String> parameters {"call restart()", "call tomenu()", "test", "test2", "test3"};
   std::vector<String> curparameters;
 
