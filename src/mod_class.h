@@ -9,6 +9,7 @@ public:
   virtual void firsttick() = 0;
   virtual void setup() = 0;
   virtual String getName() = 0;
+  virtual bool isRebootable() {return false;};
 };
 
 class About : public Mod {

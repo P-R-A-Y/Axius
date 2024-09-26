@@ -16,7 +16,7 @@
 
 class Parameter {
 public:
-  virtual ~Parameter() = default; // Деструктор
+  virtual ~Parameter() = default;
   virtual uint16_t getBytesLength() = 0;
   //virtual void setValue(int input) = 0;
   uint16_t address = 0;
@@ -136,18 +136,23 @@ public:
   BoolParameter version    {"v1?", false};
   ByteParameter cs         {"cursor", 0};
   ByteParameter devid      {"deviceId", random(256)};
+  BoolParameter mbu        {"modBackUp", false};
+  BoolParameter cim        {"crashedInMod", false}; 
 
-  std::vector<Parameter*> settings { &exit, &version, &cs, &devid };
+  std::vector<Parameter*> settings { &exit, &version, &cs, &devid, &mbu, &cim };
 
 private:
   void checkmem();
   void loadSavedData();
 
+  uint16_t memcheckaddr = 0, memcheckaddrmax = 32768;
   bool memoryWorking = false, fixedOnParameter = false;
   uint8_t state = 0, cursor = 0, startpos = 0, iconanimstate = 1, mcursor = 0, mstartpos = 0;
   unsigned long diskIconAnimTime = 0;
   const uint8_t numbytes = 1; //help compiler with choice between uint8_t requestFrom(int, int); and uint8_t requestFrom(uint8_t, uint8_t);
-  const std::vector<String> statepick {"exit", "parameters", "restart", "deepsleep test", "modules"};
+  const std::vector<String> statepick {"exit", "parameters", "restart", "eeprom test", "modules"};
+
+  bool ignoreBrokenMemory = false;
 };
 
 

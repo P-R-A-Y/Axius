@@ -97,19 +97,19 @@ struct esppl_frame_info {
   bool isvalid;
 };
 
-const uint8_t ESPPL_DS_NO     = 0;
-const uint8_t ESPPL_DS_TO     = 1;
-const uint8_t ESPPL_DS_FROM   = 2;
-const uint8_t ESPPL_DS_TOFROM = 3;
+const uint8_t ESPPL_DS_NO      = 0;
+const uint8_t ESPPL_DS_TO      = 1;
+const uint8_t ESPPL_DS_FROM    = 2;
+const uint8_t ESPPL_DS_TOFROM  = 3;
 
-const uint8_t ESPPL_MANAGEMENT = 0;
-const uint8_t ESPPL_CONTROL    = 1;
-const uint8_t ESPPL_DATA       = 2;
+const uint8_t ESPPL_MANAGEMENT  = 0;
+const uint8_t ESPPL_CONTROL     = 1;
+const uint8_t ESPPL_DATA        = 2;
 
 const uint8_t ESPPL_MANAGEMENT_ASSOCIATION_REQUEST    = 0;
 const uint8_t ESPPL_MANAGEMENT_ASSOCIATION_RESPONSE   = 1;
 const uint8_t ESPPL_MANAGEMENT_REASSOCIATION_REQUEST  = 2;
-const uint8_t ESPPL_MANAGEMENT_REASSOCIATION_RESPONSE = 3;
+const uint8_t ESPPL_MANAGEMENT_REASSOCIATION_RESPONSE  = 3;
 const uint8_t ESPPL_MANAGEMENT_PROBE_REQUEST          = 4;
 const uint8_t ESPPL_MANAGEMENT_PROBE_RESPONSE         = 5;
 const uint8_t ESPPL_MANAGEMENT_TIMMING_ADVERTISEMENT  = 6;
@@ -259,6 +259,8 @@ class AxiusSSD {
     const uint8_t afkBarWidth = 20;
     uint8_t curLogoFrame = 0;
     std::vector<Mod*> mods;
+    bool logoanim1stframe = true;
+    uint32_t lastLAFChange = 0;
     uint8_t curModule = 0;
 
     void (*renderInPSM)();
@@ -267,7 +269,7 @@ class AxiusSSD {
     bool (*isPSMAnimationOverrided)();
     void (*onIncomingPacket)(esppl_frame_info *info);
 
-    const int epd_bitmap_allArray_LEN = 31;
+    const int epd_bitmap_allArray_LEN = 31;  
     const unsigned char* epd_bitmap_allArray[31] = {
       epd_bitmap_aspose_video_133626583510124466_out_000,
       epd_bitmap_aspose_video_133626583510124466_out_001,

@@ -47,7 +47,7 @@ void AxiusLink::tick() {
       for (uint8_t i = sstartpos; i < sstartpos+5; i++) {
         if (i > nearbyDevices.size()) break;
         if (i == 0) axius.drawTextSelector("exit", i-sstartpos, i == scursor);
-        else axius.drawTextSelector(nearbyDevices[i-1].stype, i-sstartpos, i == scursor);
+        else axius.drawTextSelector("["+String(float(millis()-nearbyDevices[i-1].lastTimeSeen)/1000.0f)+"s] "+nearbyDevices[i-1].stype, i-sstartpos, i == scursor);
       }
       //end
     }
@@ -141,7 +141,7 @@ void AxiusLink::supertick() {
 
   if (nearbyDevices.size() > 0) {
     for (auto it = nearbyDevices.begin(); it != nearbyDevices.end();) {
-      if (millis() - it->lastTimeSeen > 2000) {
+      if (millis() - it->lastTimeSeen > 2500) {
         if ((state == 1 || state == 2) && nearbyDevices[scursor-1].id == it->id) state = 0;
         it = nearbyDevices.erase(it);
       } else ++it;
@@ -165,6 +165,7 @@ void AxiusLink::processPacket(uint8_t id, uint8_t* packet) {
     rp.responderId = axius.MEM.getParameterByte("deviceId", 255);
     rp.devtype = axius.deviceName;
     sendPacket(&rp);
+    updateDevice(p.senderId, "old (id:"+String(p.senderId)+")");
   } else if (id == BEACONRESPONSE || id == BEACONBROADCAST) {
     String devtype;
     uint8_t devid;
@@ -179,19 +180,7 @@ void AxiusLink::processPacket(uint8_t id, uint8_t* packet) {
       devtype = respp.devtype;
       devid = respp.responderId;
     }
-    if (nearbyDevices.size() > 0) {
-      for (auto dev = nearbyDevices.begin(); dev != nearbyDevices.end(); dev++) {
-        if (dev->id == devid) {
-          dev->lastTimeSeen = millis();
-          return;
-        }
-      }
-    }
-    Device d;
-    d.id = devid;
-    d.lastTimeSeen = millis();
-    d.stype = devtype;
-    nearbyDevices.push_back(d);
+    updateDevice(devid, devtype);
   } else if (id == PARAMETERSREQUEST) {
     ParametersRequestPacket parreq;
     parreq.setData(packet);

@@ -8,7 +8,7 @@ struct ShortPacket {
 };
 
 #pragma once
-const char substrings[111] {
+const char substrings[111] = {
   '0','1','2','3','4','5','6','7','8','9',
   'a','b','c','d','e','f','g','h','i','j',
   'k','l','m','n','o','p','q','r','s','t',
@@ -111,7 +111,7 @@ bool blinkNow(uint16_t timeScale);
 #pragma once
 class BeaconPacketConstructor {
   public:
-    void setProperties(String name, bool wpa2, int8_t hashTagIndex, uint8_t* mac, bool cd1s);
+    void setProperties(String name, bool wpa2, int8_t hashTagIndex, uint8_t* mac, bool cd1s, bool hashTagIndexBackwards);
     void setMac(uint8_t* mac);
     void setChannel(uint8_t c);
     uint8_t* getBytes();

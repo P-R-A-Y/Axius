@@ -134,8 +134,13 @@ void AxiusSSD::setIncomingPacketListener(void (*func)(esppl_frame_info *info)) {
 
 void AxiusSSD::updateStatusBar() {
   if (!showStatusBar) return;
-  display.setCursor(0,2);
-  display.println("AX");
+  //display.setCursor(0,1);
+  //display.println("AX");
+  if (millis() - lastLAFChange > 400) {
+    lastLAFChange = millis();
+    logoanim1stframe = !logoanim1stframe;
+  }
+  display.drawBitmap(0, 1, (logoanim1stframe ? logoanim1 : logoanim2), 11, 11, SSD1306_WHITE);
 
   display.setFont(&Picopixel);
   float frequency = 1000.0 / (millis() - previousMillis);
@@ -197,9 +202,7 @@ void AxiusSSD::endRender() {
     updateStatusBar();
     display.display();
     display.clearDisplay();
-  }/* else {
-    Serial.println("no render!");
-  }*/
+  }
 
   al.supertick();
   resetbuttons();
@@ -331,6 +334,9 @@ void AxiusSSD::tick() {
         HPS = -1;
         onLastPreparation();
         FULLPREPARED = true;
+        if (MEM.getParameterBool("modBackUp") && MEM.getParameterBool("crashedInMod")) {
+          oks = 1;
+        }
       }
       break;
     case State::menu:
@@ -350,6 +356,7 @@ void AxiusSSD::tick() {
       if (readok()) {
         state = State::modwork;
         MEM.setParameterByte("cursor", cursor);
+        if (mods[cursor] -> isRebootable()) MEM.setParameterBool("crashedInMod", true);
         mods[cursor] -> firsttick();
         firstOperationalTick = true;
       }
@@ -437,6 +444,7 @@ void AxiusSSD::resetbuttons() {
   if (oks == 3) oks = 0;
 }
 
+bool skipFirstCall = true;
 void AxiusSSD::tomenu() {
   state = State::menu;
   showStatusBar = true;
@@ -449,6 +457,11 @@ void AxiusSSD::tomenu() {
     if (++cursor-startpos > 4) startpos++;
   }
   updateScreen = true;
+  if (skipFirstCall) {
+    skipFirstCall = false;
+    return;
+  }
+  MEM.setParameterBool("crashedInMod", false);
 }
 
 bool AxiusSSD::sendWifiFrame(uint8 *buf, int len) {

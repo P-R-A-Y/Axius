@@ -32,7 +32,7 @@ void MemoryManagerMod::loadSavedData() {
 
       if (settings[i]->classType() == BOOLP) {
         BoolParameter *bp = (BoolParameter *) settings[i];
-        bp->curval = (readEEPROM(bp->address) == 51 ? true : false);
+        bp->curval = (readEEPROM(bp->address) == 50 ? false : true);
       } else if (settings[i]->classType() == BYTEP) {
         ByteParameter *bp = (ByteParameter *) settings[i];
         bp->curval = readEEPROM(bp->address);
@@ -113,8 +113,8 @@ void MemoryManagerMod::tick() {
           cursor = 0;
           startpos = 0;
         } else if (cursor == 3) {
-          Serial.println("sleep");
-          ESP.deepSleep(1e6);
+          state = 5;
+          ignoreBrokenMemory = true;
         } else if (cursor == 4) {
           state = 2;
         }
@@ -205,6 +205,22 @@ void MemoryManagerMod::tick() {
         if (i == 0) AxiusSSD::instance->drawTextSelector("exit?", i-startpos + 1, i == cursor);
         else AxiusSSD::instance->drawTextSelector(settings[i]->toString(), i-startpos + 1, i == cursor);
       }
+    }
+  } else if (state == 5) {
+    AxiusSSD::instance->drawText("testing eeprom cells...", 0);
+    AxiusSSD::instance->drawText("check serial output", 1);
+    AxiusSSD::instance->drawLoadingLine(memcheckaddr, memcheckaddrmax, 3);
+    for (uint8_t i = 0; i < 100; i++) {
+      if (memcheckaddr >= memcheckaddrmax) {
+        ESP.restart();
+        return;
+      }
+
+      uint8_t before = readEEPROM(memcheckaddr);
+      writeEEPROM(memcheckaddr, before++);
+      writeEEPROM(memcheckaddr, before);
+
+      memcheckaddr++;
     }
   }
 }
@@ -329,6 +345,7 @@ uint16_t MemoryManagerMod::getBytearraySize(const String &alias) {
 }
 
 void MemoryManagerMod::onMemoryError() {
+  if (ignoreBrokenMemory) return;
   AxiusSSD::instance->toerror();
   state = 50;
 }
@@ -355,10 +372,11 @@ void MemoryManagerMod::writeEEPROM(uint16_t address, uint8_t data) {
     Wire.endTransmission();
   }
   delay(5);
-  if (readEEPROM(address) != data) {
+  uint8_t result = readEEPROM(address);
+  if (result != data) {
     memoryWorking = false;
     onMemoryError();
-    Serial.println("writeEEPROM error");  
+    Serial.println("writeEEPROM error (at: "+String(address)+" expected "+String(data)+", but got "+String(result));  
   }
   iconanimstate = 4;
   diskIconAnimTime = millis();

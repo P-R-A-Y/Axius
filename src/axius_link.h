@@ -24,7 +24,7 @@ private:
   struct Device {
     uint8_t id;
     String stype;
-    unsigned long lastTimeSeen;
+    uint32_t lastTimeSeen;
   };
   std::vector<Device> nearbyDevices;
   BeaconBroadcastPacket finalBeaconPacket;
@@ -33,6 +33,22 @@ private:
 
   void processPacket(uint8_t id, uint8_t* packet);
   void sendPacket(AxiusPacket* p);
+  
+  void updateDevice(uint8_t id, String name) {
+    if (nearbyDevices.size() > 0) {
+      for (auto dev = nearbyDevices.begin(); dev != nearbyDevices.end(); dev++) {
+        if (dev->id == id) {
+          dev->lastTimeSeen = millis();
+          return;
+        }
+      }
+    }
+    Device d;
+    d.id = id;
+    d.lastTimeSeen = millis();
+    d.stype = name;
+    nearbyDevices.push_back(d);
+  }
 };
 
 #endif
