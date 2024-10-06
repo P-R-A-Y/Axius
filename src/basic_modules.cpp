@@ -21,7 +21,7 @@ void GyroscopeModule::update() {
 void GyroscopeModule::connect() {
   setConnected(mpu.begin());
   if (!isConnected()) {
-    temperature = -999.99;
+    temperature = 28.0f;
   } else {
     mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
     mpu.setGyroRange(MPU6050_RANGE_250_DEG);

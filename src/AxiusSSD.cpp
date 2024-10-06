@@ -7,6 +7,20 @@ uint32_t lastInterruptTime = 0;
 const uint32_t debounceDelay = 3;
 int scrollAlfa = 0, scrollBeta = 0;
 
+#ifdef ESP32
+
+extern "C" int ieee80211_raw_frame_sanity_check(int32_t arg, int32_t arg2, int32_t arg3) {
+  if (arg == 31337) return 1;
+  else return 0;
+}
+
+extern "C" {
+#include "esp_wifi.h"
+  esp_err_t esp_wifi_set_channel(uint8_t primary, wifi_second_chan_t second);
+  esp_err_t esp_wifi_80211_tx(wifi_interface_t ifx, const void *buffer, int len, bool en_sys_seq);
+}
+
+#else
 extern "C" {
   #include "user_interface.h"
   typedef void (*freedom_outside_cb_t)(uint8 status);
@@ -14,6 +28,7 @@ extern "C" {
   void wifi_unregister_send_pkt_freedom_cb(void);
   int  wifi_send_pkt_freedom(uint8 *buf, int len, bool sys_seq);
 }
+#endif
 
 void AxiusSSD::addModule(Module* m) {modules.push_back(m);}
 AxiusSSD::AxiusSSD() : display(Adafruit_SSD1306(128, 64, &Wire, -1)) {}
@@ -29,7 +44,7 @@ void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds , const 
   maxAfkSeconds = nmaxAfkSeconds;
   while (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println(F("SSD1306 screen allocation failed"));
-    delay(50);
+    delay(1000);
     ESP.restart();
   }
   display.clearDisplay();
@@ -41,10 +56,10 @@ void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds , const 
   
   if (mods.size() == 0) {
     mods.push_back(&MEM);
-    mods.push_back(&al);
+    mods.push_back(&link);
     mods.push_back(&a);
   } else {
-    mods.insert(mods.begin(), &al);
+    mods.insert(mods.begin(), &link);
     mods.insert(mods.begin(), &MEM);
     mods.push_back(&a);
   }
@@ -168,7 +183,7 @@ void AxiusSSD::setButtons(bool isUsingEncoder, const uint8_t UPButtonInput, cons
   invertButtonReadMethod = isInvertButtonReadMethod;
   if (isUsingEncoder) {
     useEncoder = true;
-    scrollAlfa = D5, scrollBeta = D6;
+    scrollAlfa = UPButtonInput, scrollBeta = DOWNButtonInput;
     pinMode(UPButtonInput, INPUT_PULLUP);
     pinMode(DOWNButtonInput, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(UPButtonInput), readEncoder, CHANGE);
@@ -204,7 +219,7 @@ void AxiusSSD::endRender() {
     display.clearDisplay();
   }
 
-  al.supertick();
+  link.supertick();
   resetbuttons();
 }
 
@@ -391,19 +406,23 @@ void AxiusSSD::tick() {
       }
       
       if (disableWifiInLockScreen) {
+        #ifndef ESP32
         if (!isWifiTurnedOff) {
           isWifiTurnedOff = true;
           WiFi.mode(WIFI_OFF);
           wifi_set_sleep_type(LIGHT_SLEEP_T);
           WiFi.forceSleepBegin();
         }
+        #endif
       }
       
       if ((UP_DOWN_canWakeFromLockScreen && (readup() || readdwn())) || (OK_canWakeFromLockScreen && readok())) {
         tomenu();
         if (disableWifiInLockScreen) {
+          #ifndef ESP32
           isWifiTurnedOff = false;
           WiFi.forceSleepWake();
+          #endif
         }
       }
       break;
@@ -449,7 +468,7 @@ void AxiusSSD::tomenu() {
   state = State::menu;
   showStatusBar = true;
   updateScreen = true;
-  esppl_set_channel(ESPPL_CHANNEL_MAX);
+  esppl_set_channel(SHMMR_CHANNEL_DEFAULT);
   startPacketListening();
   cursor = 0;
   startpos = 0;
@@ -464,8 +483,16 @@ void AxiusSSD::tomenu() {
   MEM.setParameterBool("crashedInMod", false);
 }
 
-bool AxiusSSD::sendWifiFrame(uint8 *buf, int len) {
-  return wifi_send_pkt_freedom(buf, len, 0) == 0;
+bool AxiusSSD::sendWifiFrame(uint8_t *buf, int len) {
+#ifdef ESP32
+  esp_err_t result = esp_wifi_80211_tx(WIFI_IF_STA, buf, len, false);
+  if (result != ESP_OK) {
+    Serial.println("cannot send packet: "+String(result));
+    return false;
+  } else return true;
+#else
+  return wifi_send_pkt_freedom(buf, len, false) == 0;
+#endif
 }
 
 void AxiusSSD::toerror() {
@@ -477,12 +504,12 @@ void AxiusSSD::restart() {
   state = State::restart;
 }
 
-void AxiusSSD::forceRestart() {
-  
-}
-
 void AxiusSSD::stopPacketListening() {  ///-------------------------------------------ESPPL USED HERE
+#ifdef ESP32
+  esp_wifi_set_promiscuous(false);
+#else
   wifi_promiscuous_enable(false);
+#endif
   esppl_sniffing_stop();
 }
 
@@ -495,13 +522,13 @@ void AxiusSSD::wifi_set_chan(uint8_t channel) {  ///----------------------------
   esppl_set_channel(channel);
 }
 
-void AxiusSSD::processUnknown(uint8_t* frame) {
+void AxiusSSD::processUnknown(uint8_t* frame, int rssi) {
   for (uint8_t i = 0; i < 6; ++i) {
     if (frame[4+i] != myAddress[i]) {
       return;
     }
   }
-  al.onPacket(frame);
+  link.onPacket(frame, rssi);
 }
 
 
@@ -511,26 +538,48 @@ void AxiusSSD::processUnknown(uint8_t* frame) {
 
 
 
+#ifdef ESP32
+void AxiusSSD::esppl_rx_cb(void* buff, wifi_promiscuous_pkt_type_t type) {
+  const wifi_promiscuous_pkt_t *ppkt = (wifi_promiscuous_pkt_t *)buff;
 
+  //TODO
+
+  if (ppkt->rx_ctrl.sig_len < 26) return;
+
+  if (ppkt->payload[0] == 0xC0) { //192
+    uint8_t* noconst = new uint8_t[ppkt->rx_ctrl.sig_len];
+    memcpy(noconst, &ppkt->payload[0], ppkt->rx_ctrl.sig_len);
+    //fuck constants
+
+    instance->processUnknown(noconst, ppkt->rx_ctrl.rssi);
+  }
+}
+#else
 void AxiusSSD::esppl_rx_cb(uint8_t *buf, uint16_t len) {
+  int rssi = -1;
   if (len == sizeof(struct sniffer_buf2)) {
     struct sniffer_buf2 *sniffer = (struct sniffer_buf2*) buf;
     instance->esppl_buf_to_info(sniffer->buf, sniffer->rx_ctrl.rssi, len);
+    rssi = sniffer->rx_ctrl.rssi;
   } else if (len == sizeof(struct RxControl)) {
+    return;
     //struct RxControl *sniffer = (struct RxControl*) buf;
+    //rssi = sniffer->rx_ctrl.rssi;
   } else {
     struct sniffer_buf *sniffer = (struct sniffer_buf*) buf;
     instance->esppl_buf_to_info(sniffer->buf, sniffer->rx_ctrl.rssi, len);
+    rssi = sniffer->rx_ctrl.rssi;
   }
 
   if (!buf || len < 26) return;
 
-  if (buf[12] == 0xC0) {
+  if (buf[12] == 0xC0) { //192
     uint8_t* withoutheader = new uint8_t[len-12];
     memcpy(withoutheader, &buf[12], len-12);
-    instance->processUnknown(withoutheader);
+    instance->processUnknown(withoutheader, rssi);
   }
 }
+#endif
 
 void AxiusSSD::esppl_buf_to_info(uint8_t *frame, signed rssi, uint16_t len) {
   struct esppl_frame_info info;
@@ -695,8 +744,12 @@ void AxiusSSD::esppl_buf_to_info(uint8_t *frame, signed rssi, uint16_t len) {
 }
 
 void AxiusSSD::esppl_set_channel(int channel) {
+#ifdef ESP32
+  esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
+#else
   wifi_set_channel(channel);
   WiFi.channel(uint8_t(channel));
+#endif
   esppl_channel = channel;
 }
 
@@ -705,15 +758,40 @@ bool AxiusSSD::esppl_process_frames() {
   return frame_waitlist != 0;
 }
 
+#ifdef ESP32
+static wifi_country_t wifi_country = {.cc="CN", .schan = 1, .nchan = 14};
+#endif
+
 void AxiusSSD::esppl_init(void (*cb)(esppl_frame_info *info)) {
   user_cb = cb;
   frame_waitlist = 0;
+  #ifdef ESP32
+  /*wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+  //ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+  WiFi.mode(WIFI_AP);
+  ESP_ERROR_CHECK(esp_wifi_set_country(&wifi_country));
+  ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+  ESP_ERROR_CHECK(esp_wifi_start());
+  esp_wifi_set_promiscuous(false);
+  esp_wifi_set_promiscuous_rx_cb(&AxiusSSD::esppl_rx_cb);
+  esp_wifi_set_promiscuous(true);*/
+  WiFi.mode(WIFI_AP_STA);
+  ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+  ESP_ERROR_CHECK(esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE));
+  ESP_ERROR_CHECK(esp_wifi_set_promiscuous(false));
+  //ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(82));
+  ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(AxiusSSD::esppl_rx_cb));
+  ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true));
+  #else
   wifi_station_disconnect();
   wifi_set_opmode(STATION_MODE);
   wifi_set_channel(esppl_channel);
   wifi_promiscuous_enable(false);
   wifi_set_promiscuous_rx_cb(AxiusSSD::esppl_rx_cb);
   wifi_promiscuous_enable(true);
+  #endif
   esppl_sniffing_enabled = false;
 }
 

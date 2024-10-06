@@ -1,17 +1,17 @@
-#include "axius_link.h"
+#include "link.h"
 #include <AxiusSSD.h>
 extern AxiusSSD axius;
 
-String AxiusLink::getName() {return "AxiusLink["+String(nearbyDevices.size())+"]";};
+String Link::getName() {return "Link["+String(nearbyDevices.size())+"]";};
 
-void AxiusLink::firsttick() {
+void Link::firsttick() {
 
 };
-void AxiusLink::setup() {
+void Link::setup() {
   finalBeaconPacket.broadcasterId = axius.MEM.getParameterByte("deviceId", 255);
   finalBeaconPacket.devtype = axius.deviceName;
 };
-void AxiusLink::tick() {
+void Link::tick() {
   axius.updateScreen = true;
   if (state == 0) {
     if (nearbyDevices.size() == 0) {
@@ -47,7 +47,7 @@ void AxiusLink::tick() {
       for (uint8_t i = sstartpos; i < sstartpos+5; i++) {
         if (i > nearbyDevices.size()) break;
         if (i == 0) axius.drawTextSelector("exit", i-sstartpos, i == scursor);
-        else axius.drawTextSelector("["+String(float(millis()-nearbyDevices[i-1].lastTimeSeen)/1000.0f)+"s] "+nearbyDevices[i-1].stype, i-sstartpos, i == scursor);
+        else axius.drawTextSelector(String(nearbyDevices[i-1].ss)+" | "+nearbyDevices[i-1].stype, i-sstartpos, i == scursor);
       }
       //end
     }
@@ -94,7 +94,7 @@ void AxiusLink::tick() {
   }
 };
 
-void AxiusLink::supertick() {
+void Link::supertick() {
   if (millis() - lastRequestTime > 1000) {
     lastRequestTime = millis();
     sendPacket(&finalBeaconPacket);
@@ -105,6 +105,7 @@ void AxiusLink::supertick() {
     //Serial.println("supertick");
     //Serial.println(bufferedPackets.size());
     std::vector<uint8_t*> uniqueData;
+    std::vector<int> uniqueRssi;
     size_t dataSize = bufferedPackets.size();
 
     for (size_t i = 0; i < dataSize; ++i) {
@@ -118,18 +119,20 @@ void AxiusLink::supertick() {
       }
       if (!isDuplicate) {
         uniqueData.push_back(element);
+        uniqueRssi.push_back(rssiPack[i]);
       } else {
         delete[] element;
       }
     }
     
     bufferedPackets = std::move(uniqueData);
+    rssiPack = std::move(uniqueRssi);
 
     //Serial.println(bufferedPackets.size());
     for (uint8_t i = 0; i < bufferedPackets.size(); i++) {
       uint8_t* packet = bufferedPackets[i];
       uint8_t id = packet[25];
-      processPacket(id, packet);
+      processPacket(id, packet, rssiPack[i]);
     }
 
     for (uint8_t* packet : bufferedPackets) {
@@ -137,6 +140,7 @@ void AxiusLink::supertick() {
     }
 
     bufferedPackets.clear();
+    rssiPack.clear();
   }
 
   if (nearbyDevices.size() > 0) {
@@ -149,14 +153,15 @@ void AxiusLink::supertick() {
   }
 };
 
-void AxiusLink::onPacket(uint8_t* frame) {
+void Link::onPacket(uint8_t* frame, int rssi) {
   bufferedPackets.push_back(frame);
+  rssiPack.push_back(rssi);
 };
 
 
 
 
-void AxiusLink::processPacket(uint8_t id, uint8_t* packet) {
+void Link::processPacket(uint8_t id, uint8_t* packet, int rssi) {
   if (id == BEACONREQUEST) {
     BeaconRequestPacket p;
     p.setData(packet);
@@ -165,7 +170,7 @@ void AxiusLink::processPacket(uint8_t id, uint8_t* packet) {
     rp.responderId = axius.MEM.getParameterByte("deviceId", 255);
     rp.devtype = axius.deviceName;
     sendPacket(&rp);
-    updateDevice(p.senderId, "old (id:"+String(p.senderId)+")");
+    updateDevice(p.senderId, "old (id:"+String(p.senderId)+")", rssi);
   } else if (id == BEACONRESPONSE || id == BEACONBROADCAST) {
     String devtype;
     uint8_t devid;
@@ -180,7 +185,7 @@ void AxiusLink::processPacket(uint8_t id, uint8_t* packet) {
       devtype = respp.devtype;
       devid = respp.responderId;
     }
-    updateDevice(devid, devtype);
+    updateDevice(devid, devtype, rssi);
   } else if (id == PARAMETERSREQUEST) {
     ParametersRequestPacket parreq;
     parreq.setData(packet);
@@ -231,7 +236,7 @@ void AxiusLink::processPacket(uint8_t id, uint8_t* packet) {
   }
 }
 
-void AxiusLink::sendPacket(AxiusPacket* p) {
+void Link::sendPacket(AxiusPacket* p) {
   uint8_t size = 28 + p->getSize();
   uint8_t* packet = new uint8_t[size];
   memcpy(&packet[0], &pseudoRealisticHeader, 28);

@@ -42,3 +42,19 @@ void Adafruit_GFX::drawBitmapMirrored(int16_t x, int16_t y, uint8_t *bitmap, int
 Adafruit_GFX.h add:
 void drawBitmapMirrored(int16_t x, int16_t y, uint8_t *bitmap, int16_t w,
 	                int16_t h, uint16_t color);
+
+
+
+
+
+===================================================================
+for esp32
+
+Patching platform.txt
+
+The platform.txt for the ESP32 is commonly located under: ~/.arduino15/packages/esp32/hardware/esp32/{version}/platform.txt. Make sure you to replace {version} with the currently installed version of the ESP32 dev enviroment (for example 2.0.9). Open the file in your favourite text editor and add:
+
+    -zmuldefs to compiler.c.elf.libs.esp32 or compiler.c.elf.libs(any text)
+    -w to build.extra_flags.esp32
+
+This will allow the c compiler to tolerate multiple definitions, which are used to bypass the deauthentication frame check in the ESP32's firmware. After this you can hit upload in the Arduino-ide.

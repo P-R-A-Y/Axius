@@ -12,7 +12,6 @@
 #include "globalstructures.h"
 
 class AxiusPacket {
-  //AxiusPacket();
   public:
     virtual ~AxiusPacket() = default;
     virtual void setData(uint8_t* buffer) = 0;

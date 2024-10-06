@@ -9,7 +9,6 @@ void BeaconPacketConstructor::setProperties(String name, bool wpa2, int8_t hashT
   }
   if (hashTagIndex == -1) nameSize = min(name.length(), (uint) 32);
   else                    nameSize = min(name.length() + 4, (uint) 32);
-  //Serial.println(name+" "+String(nameSize));
   packetSize = 109 - 32 + nameSize;
   if (!wpa2) packetSize -= 26;
 

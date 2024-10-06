@@ -6,13 +6,23 @@
 #define ESPPL_CHANNEL_MIN 1
 #define ESPPL_CHANNEL_MAX 14
 #define ESPPL_CHANNEL_DEFAULT 1
+#define SHMMR_CHANNEL_DEFAULT 14
 #define ESPPL_MANAGEMENT_MAC_HEADER_SIZE 36
 
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <vector>
+
+//-------------------------------wifi
+#ifdef ESP32
+#include <esp_wifi.h>
+#include <WiFi.h>
+#else
 #include "ESP8266WiFi.h"
+#endif
+//-------------------------------wifi
+
 #include <Fonts/Picopixel.h>
 
 #include "globalstructures.h"
@@ -21,7 +31,7 @@
 #include "mod_class.h"
 
 #include "memory_manager_mod.h"
-#include "axius_link.h"
+#include "link.h"
 #include "basic_modules.h"
 
 enum class State {
@@ -194,7 +204,7 @@ class AxiusSSD {
 
     Adafruit_SSD1306 display;
     MemoryManagerMod MEM;
-    AxiusLink al;
+    Link link;
     About a;
     int8_t HPS = 0;
     uint8_t cursor = 0;
@@ -215,21 +225,23 @@ class AxiusSSD {
     void forceRestart();
     void stopPacketListening();
     void startPacketListening();
-    bool sendWifiFrame(uint8 *buf, int len);
+    bool sendWifiFrame(uint8_t *buf, int len);
     void wifi_set_chan(uint8_t channel);
-    void processUnknown(uint8_t* frame);
-
-    //---------------------------------------------------------------------
-
-    uint8_t esppl_channel = ESPPL_CHANNEL_DEFAULT;
-    uint8_t esppl_default_mac[ESPPL_MAC_LEN] = {0x00,0x00,0x00,0x00,0x00,0x00};
-    void (*user_cb)(esppl_frame_info *info);
-    int frame_waitlist = 0;
-    bool esppl_sniffing_enabled = false;
+    void processUnknown(uint8_t* frame, int rssi);
 
     static AxiusSSD* instance;
-    static void esppl_rx_cb(uint8_t *buf, uint16_t len);
+    //---------------------------------------------------------------------ESPPL
+    uint8_t esppl_channel = ESPPL_CHANNEL_DEFAULT;
+    uint8_t esppl_default_mac[ESPPL_MAC_LEN] = {0x00,0x00,0x00,0x00,0x00,0x00};
     
+    int frame_waitlist = 0;
+    bool esppl_sniffing_enabled = false;
+#ifdef ESP32
+    static void esppl_rx_cb(void* buff, wifi_promiscuous_pkt_type_t type);
+#else
+    static void esppl_rx_cb(uint8_t *buf, uint16_t len);
+#endif
+    void (*user_cb)(esppl_frame_info *info);
     void esppl_buf_to_info(uint8_t *frame, signed rssi, uint16_t len);
     void esppl_set_channel(int channel);
     bool esppl_process_frames();
