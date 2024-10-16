@@ -74,7 +74,7 @@ bool blinkNow(uint16_t timeScale) {
   return (millis() % timeScale) > (timeScale / 2);
 }
 
-String uint8ArrayToString(const uint8_t *array, size_t arraySize) {
+String uint8ArrayToString(uint8_t *array, size_t arraySize) {
   String result = "";
   for (size_t i = 0; i < arraySize; i++) {
     if (array[i] != 0) {

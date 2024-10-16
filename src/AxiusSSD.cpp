@@ -72,11 +72,23 @@ void AxiusSSD::drawTextSelector(String text, uint8_t row, bool isselected) {
   if (!updateScreen) return;
   uint8_t y = row*11+columnTopShift;
   if (isselected)
-    display.fillCircle(3, y+3, 2, SSD1306_WHITE);
+    display.fillCircle(2, y+3, 2, SSD1306_WHITE);
   else
-    display.drawCircle(3, y+3, 2, SSD1306_WHITE);
-  display.setCursor(8,y);
+    display.drawCircle(2, y+3, 2, SSD1306_WHITE);
+  display.setCursor(6,y);
   display.println(text);
+}
+
+void AxiusSSD::drawTextWithBorder(String text, uint8_t row, bool border) {
+  if (!updateScreen) return;
+  uint8_t y = row*11+columnTopShift;
+  
+  if (border) display.fillRect(0, y-1, 128, 9, SSD1306_WHITE);
+
+  display.setTextColor(border ? SSD1306_BLACK : SSD1306_WHITE);
+  display.setCursor(1,y);
+  display.println(text);
+  display.setTextColor(SSD1306_WHITE);
 }
 
 void AxiusSSD::drawTextSelectorWithBorder(String text, uint8_t row, bool isselected, bool border) {
@@ -112,7 +124,7 @@ void AxiusSSD::drawLoadingLine(float cur, float max, uint8_t row) {
 void AxiusSSD::drawText(String text, uint8_t row) {
   if (!updateScreen) return;
   uint8_t y = row*11+columnTopShift;
-  display.setCursor(0,y);
+  display.setCursor(1,y);
   display.println(text);
 }
 
@@ -525,6 +537,7 @@ void AxiusSSD::wifi_set_chan(uint8_t channel) {  ///----------------------------
 void AxiusSSD::processUnknown(uint8_t* frame, int rssi) {
   for (uint8_t i = 0; i < 6; ++i) {
     if (frame[4+i] != myAddress[i]) {
+      delete[] frame;
       return;
     }
   }
@@ -542,16 +555,29 @@ void AxiusSSD::processUnknown(uint8_t* frame, int rssi) {
 void AxiusSSD::esppl_rx_cb(void* buff, wifi_promiscuous_pkt_type_t type) {
   const wifi_promiscuous_pkt_t *ppkt = (wifi_promiscuous_pkt_t *)buff;
 
-  //TODO
+  uint8_t* data = (uint8_t *)buff;
+  uint16_t len = sizeof(data);
+
+  if (len == sizeof(struct sniffer_buf2)) {
+    struct sniffer_buf2 *sniffer = (struct sniffer_buf2*) data;
+    instance->esppl_buf_to_info(sniffer->buf, sniffer->rx_ctrl.rssi, len);
+  } else if (len == sizeof(struct RxControl)) {
+    return;
+    //struct RxControl *sniffer = (struct RxControl*) buf;
+  } else {
+    struct sniffer_buf *sniffer = (struct sniffer_buf*) data;
+    instance->esppl_buf_to_info(sniffer->buf, sniffer->rx_ctrl.rssi, len);
+  }
 
   if (ppkt->rx_ctrl.sig_len < 26) return;
 
-  if (ppkt->payload[0] == 0xC0) { //192
+  if (ppkt->payload[0] == 0xC0) {
     uint8_t* noconst = new uint8_t[ppkt->rx_ctrl.sig_len];
     memcpy(noconst, &ppkt->payload[0], ppkt->rx_ctrl.sig_len);
     //fuck constants
 
     instance->processUnknown(noconst, ppkt->rx_ctrl.rssi);
+    //delete[] noconst;
   }
 }
 #else
@@ -564,19 +590,19 @@ void AxiusSSD::esppl_rx_cb(uint8_t *buf, uint16_t len) {
   } else if (len == sizeof(struct RxControl)) {
     return;
     //struct RxControl *sniffer = (struct RxControl*) buf;
-    //rssi = sniffer->rx_ctrl.rssi;
   } else {
     struct sniffer_buf *sniffer = (struct sniffer_buf*) buf;
     instance->esppl_buf_to_info(sniffer->buf, sniffer->rx_ctrl.rssi, len);
     rssi = sniffer->rx_ctrl.rssi;
   }
-
   if (!buf || len < 26) return;
 
   if (buf[12] == 0xC0) { //192
     uint8_t* withoutheader = new uint8_t[len-12];
     memcpy(withoutheader, &buf[12], len-12);
     instance->processUnknown(withoutheader, rssi);
+
+    //delete[] withoutheader;
   }
 }
 #endif
@@ -708,7 +734,7 @@ void AxiusSSD::esppl_buf_to_info(uint8_t *frame, signed rssi, uint16_t len) {
               switch (frame[pos]) {
                 case 0: // - SSID
                   info.ssid_length = frame[pos + 1];
-                  if (info.ssid_length > 32/* || info.ssid_length < 0*/) {
+                  if (info.ssid_length > 32 || info.ssid_length < 0) {
                     info.ssid_length = 0;
                   }
                   memcpy(info.ssid, frame + pos + 2, info.ssid_length);
@@ -731,8 +757,19 @@ void AxiusSSD::esppl_buf_to_info(uint8_t *frame, signed rssi, uint16_t len) {
         memcpy(info.sourceaddr, frame + 4 + ESPPL_MAC_LEN, ESPPL_MAC_LEN);
         memcpy(info.bssid, frame + 4 + ESPPL_MAC_LEN * 2, ESPPL_MAC_LEN);
         break;
+      case ESPPL_EXTENSION:
+        switch (info.framesubtype) {
+          case ESPPL_EXTENSION_DMG_BEACON:
+            break;
+          case ESPPL_EXTENSION_S1G_BEACON:
+            break;
+          default:
+            break;
+        }
+        break;
       default:
         info.isvalid = false; //TODO Proper checksum validation
+        //Serial.println("invalid ebaniy "+String(info.frametype));
     }
   
     // - User callback function

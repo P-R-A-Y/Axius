@@ -4,7 +4,7 @@
 struct ShortPacket {
   uint8_t receiveraddr[6];
   uint8_t sourceaddr[6];
-  uint8_t channel;
+  int8_t channel;
 };
 
 #pragma once
@@ -84,7 +84,7 @@ const uint8_t pseudoRealisticHeader[28] = {
 void stringToUint8Array(const String &str, uint8_t *array, size_t arraySize);
 
 #pragma once
-String uint8ArrayToString(const uint8_t *array, size_t arraySize);
+String uint8ArrayToString(uint8_t *array, size_t arraySize);
 
 #pragma once
 struct Point {

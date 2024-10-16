@@ -115,6 +115,10 @@ const uint8_t ESPPL_DS_TOFROM  = 3;
 const uint8_t ESPPL_MANAGEMENT  = 0;
 const uint8_t ESPPL_CONTROL     = 1;
 const uint8_t ESPPL_DATA        = 2;
+const uint8_t ESPPL_EXTENSION   = 3; //or MISC
+
+const uint8_t ESPPL_EXTENSION_DMG_BEACON = 0;
+const uint8_t ESPPL_EXTENSION_S1G_BEACON = 1;
 
 const uint8_t ESPPL_MANAGEMENT_ASSOCIATION_REQUEST    = 0;
 const uint8_t ESPPL_MANAGEMENT_ASSOCIATION_RESPONSE   = 1;
@@ -193,6 +197,7 @@ class AxiusSSD {
 
     void drawTextSelector(String text, uint8_t row, bool isselected);
     void drawTextSelectorWithBorder(String text, uint8_t row, bool isselected, bool border);
+    void drawTextWithBorder(String text, uint8_t row, bool border);
     void drawLoadingLine(float cur, float max, uint8_t row);
     void drawText(String text, uint8_t row);
     bool readup();
