@@ -18,8 +18,6 @@
 #ifdef ESP32
 #include <esp_wifi.h>
 #include <WiFi.h>
-#else
-#include "ESP8266WiFi.h"
 #endif
 //-------------------------------wifi
 
@@ -251,19 +249,19 @@ class AxiusSSD {
     void esppl_set_channel(int channel);
     bool esppl_process_frames();
     void esppl_init(void (*cb)(esppl_frame_info *info));
-    void esppl_sniffing_start();
-    void esppl_sniffing_stop();
+    void set_max_tx_power(float percent);
 
     GyroscopeModule gyroscope;
     VoltmeterModule voltmeter;
 
     std::vector<Module*> modules;
   private:
+    void esppl_sniffing_start();
+    void esppl_sniffing_stop();
     int upb = 0, dwnb = 0, okb = 0;
     bool useEncoder = true;
     //settings
     float maxAfkSeconds = 6000;
-    bool disableWifiInLockScreen = true;
     bool UP_DOWN_canWakeFromLockScreen = true;
     bool OK_canWakeFromLockScreen = true;
     bool invertButtonReadMethod = false;
@@ -271,7 +269,7 @@ class AxiusSSD {
     uint8_t myAddress[6] = {0xFA, 0xBA, 0xCA, 0xBA, 0x08, 0x01};
     const uint8_t llminx = 5, llwidth = 94;
     uint8_t columnTopShift = 13;
-    bool isWifiTurnedOff = false, b3 = false, firstOperationalTick = false;
+    bool b3 = false, firstOperationalTick = false;
     unsigned long previousMillis = 0;
     const uint8_t afkBarWidth = 20;
     uint8_t curLogoFrame = 0;

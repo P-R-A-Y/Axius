@@ -417,25 +417,8 @@ void AxiusSSD::tick() {
         delay(130);
       }
       
-      if (disableWifiInLockScreen) {
-        #ifndef ESP32
-        if (!isWifiTurnedOff) {
-          isWifiTurnedOff = true;
-          WiFi.mode(WIFI_OFF);
-          wifi_set_sleep_type(LIGHT_SLEEP_T);
-          WiFi.forceSleepBegin();
-        }
-        #endif
-      }
-      
       if ((UP_DOWN_canWakeFromLockScreen && (readup() || readdwn())) || (OK_canWakeFromLockScreen && readok())) {
         tomenu();
-        if (disableWifiInLockScreen) {
-          #ifndef ESP32
-          isWifiTurnedOff = false;
-          WiFi.forceSleepWake();
-          #endif
-        }
       }
       break;
     default:
@@ -482,6 +465,7 @@ void AxiusSSD::tomenu() {
   updateScreen = true;
   esppl_set_channel(SHMMR_CHANNEL_DEFAULT);
   startPacketListening();
+  set_max_tx_power(100.0);
   cursor = 0;
   startpos = 0;
   for (uint8_t i = 0; i < MEM.getParameterByte("cursor", modsCount()-1); i++) {
@@ -780,12 +764,22 @@ void AxiusSSD::esppl_buf_to_info(uint8_t *frame, signed rssi, uint16_t len) {
   }
 }
 
+void AxiusSSD::set_max_tx_power(float percent) {
+  if (percent > 100.0) percent = 100.0;
+  else if (percent < 0.0) percent = 0.0;
+  percent /= 100.0;
+#ifdef ESP32
+  esp_wifi_set_max_tx_power(82.0 * percent);
+#else
+  system_phy_set_max_tpw(82.0 * percent);
+#endif
+}
+
 void AxiusSSD::esppl_set_channel(int channel) {
 #ifdef ESP32
   esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
 #else
   wifi_set_channel(channel);
-  WiFi.channel(uint8_t(channel));
 #endif
   esppl_channel = channel;
 }
@@ -803,27 +797,20 @@ void AxiusSSD::esppl_init(void (*cb)(esppl_frame_info *info)) {
   user_cb = cb;
   frame_waitlist = 0;
   #ifdef ESP32
-  /*wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-  //ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-  WiFi.mode(WIFI_AP);
-  ESP_ERROR_CHECK(esp_wifi_set_country(&wifi_country));
-  ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-  ESP_ERROR_CHECK(esp_wifi_start());
-  esp_wifi_set_promiscuous(false);
-  esp_wifi_set_promiscuous_rx_cb(&AxiusSSD::esppl_rx_cb);
-  esp_wifi_set_promiscuous(true);*/
-  WiFi.mode(WIFI_AP_STA);
-  ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+  //WiFi.mode(WIFI_AP_STA);
+  ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
   ESP_ERROR_CHECK(esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE));
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous(false));
   //ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(82));
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(AxiusSSD::esppl_rx_cb));
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true));
   #else
-  wifi_station_disconnect();
+  wifi_fpm_do_wakeup();
+  wifi_fpm_close();
+  //esp_wifi_start();
   wifi_set_opmode(STATION_MODE);
+  wifi_station_disconnect();
   wifi_set_channel(esppl_channel);
   wifi_promiscuous_enable(false);
   wifi_set_promiscuous_rx_cb(AxiusSSD::esppl_rx_cb);
@@ -838,4 +825,17 @@ void AxiusSSD::esppl_sniffing_start() {
 
 void AxiusSSD::esppl_sniffing_stop() {
   esppl_sniffing_enabled = false;
+#ifdef ESP32
+  
+#else
+  wifi_station_disconnect(); 
+  wifi_set_opmode(NULL_MODE);
+  wifi_fpm_set_sleep_type(MODEM_SLEEP_T);
+  yield();
+  wifi_fpm_open();
+  yield();
+  auto ret = wifi_fpm_do_sleep(0xFFFFFFF);
+  if (ret != 0) Serial.println("error with wifi sleep");
+  delay(10);
+#endif
 }
