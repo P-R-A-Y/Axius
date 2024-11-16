@@ -74,6 +74,25 @@ bool blinkNow(uint16_t timeScale) {
   return (millis() % timeScale) > (timeScale / 2);
 }
 
+void writeCharArrayToUint8Array(char* charArray, size_t charSize, uint8_t* uint8Array, size_t startAddress) {
+  for (size_t i = 0; i < charSize; i++) {
+    uint8Array[startAddress + i] = static_cast<uint8_t>(charArray[i]);
+  }
+}
+
+void readUint8ArrayToCharArray(uint8_t* uint8Array, size_t startAddress, char* charArray, size_t charSize) {
+  for (size_t i = 0; i < charSize; i++) {
+    charArray[i] = static_cast<char>(uint8Array[startAddress + i]);
+  }
+}
+
+bool comparePrefix(char* prefix1, char* prefix2) {
+  for (uint8_t i = 0; i < 6; i++) {
+    if (prefix1[i] != prefix2[i]) return false;
+  }
+  return true;
+}
+
 String uint8ArrayToString(uint8_t *array, size_t arraySize) {
   String result = "";
   for (size_t i = 0; i < arraySize; i++) {

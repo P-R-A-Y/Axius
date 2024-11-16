@@ -9,19 +9,20 @@
 #define SHMMR_CHANNEL_DEFAULT 14
 #define ESPPL_MANAGEMENT_MAC_HEADER_SIZE 36
 
+#define rowHeight      7
+#define columnTopShift 18
+
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <vector>
 
-//-------------------------------wifi
 #ifdef ESP32
 #include <esp_wifi.h>
-#include <WiFi.h>
 #endif
-//-------------------------------wifi
 
 #include <Fonts/Picopixel.h>
+#include <Customs.h>
 
 #include "globalstructures.h"
 #include "logovideo.h"
@@ -176,6 +177,8 @@ class AxiusSSD {
     void begin(String devname, MemoryChip c, float maxAfkSeconds, const uint8_t defaultOKButton, bool isInvertButtonReadMethod);
     void setButtons(bool usingEncoder, const uint8_t UPButtonInput, const uint8_t DOWNButtonInput, const uint8_t OKButtonInput, bool isOkFromEncoder, bool isInvertButtonReadMethod);
     void setFlip(bool f) {
+      if (f == isFlip) return;
+      isFlip = f;
       if (f) display.setRotation(2);
       else display.setRotation(0);
     }
@@ -186,6 +189,9 @@ class AxiusSSD {
     void setIconApplyer               (void (*func)(                      ));
     void setLockScreenOverrideChecker (bool (*func)(                      ));
     void setIncomingPacketListener    (void (*func)(esppl_frame_info *info));
+    void setIncomingPayloadListener   (void (*func)(float rssi, uint8_t sender, char* prefix, uint8_t payloadSize, uint8_t* payload)) { onCustomPayloadReceive = func; hasIncomingPayloadListener = true;}
+    
+    
 
     void updatestatusbar();
     void updatebuttons();
@@ -221,6 +227,7 @@ class AxiusSSD {
     uint8_t ups = 0, dwns = 0, oks = 0;
     String additionalTextField = "", deviceName = "UNNAMED";
     MemoryChip chip;
+    bool hasIncomingPayloadListener = false;
 
     void tomenu();
     void toerror();
@@ -255,7 +262,18 @@ class AxiusSSD {
     VoltmeterModule voltmeter;
 
     std::vector<Module*> modules;
+    
+    void (*onCustomPayloadReceive)(float rssi, uint8_t sender, char* prefix, uint8_t payloadSize, uint8_t* payload);
+
+    void tryForceSwitchToMod(String name) {
+      uint8_t n = findModeIndexByName(name);
+      if (n != 256) {
+        cursor = n;
+        state = State::modwork;
+      }
+    }
   private:
+    bool isFlip = false;
     void esppl_sniffing_start();
     void esppl_sniffing_stop();
     int upb = 0, dwnb = 0, okb = 0;
@@ -268,15 +286,25 @@ class AxiusSSD {
     //settings
     uint8_t myAddress[6] = {0xFA, 0xBA, 0xCA, 0xBA, 0x08, 0x01};
     const uint8_t llminx = 5, llwidth = 94;
-    uint8_t columnTopShift = 13;
     bool b3 = false, firstOperationalTick = false;
     unsigned long previousMillis = 0;
     const uint8_t afkBarWidth = 20;
     uint8_t curLogoFrame = 0;
+
     std::vector<Mod*> mods;
+    uint8_t findModeIndexByName(String name) {
+      for (uint8_t i = 0; i < mods.size(); i++) {
+        if (mods[i]->getName().equals(name)) {
+          return i;
+        }
+      }
+      return 255; // Возвращаем -1, если не найден
+    }
+
     bool logoanim1stframe = true;
     uint32_t lastLAFChange = 0;
     uint8_t curModule = 0;
+    bool wifiInitialized = false;
 
     void (*renderInPSM)();
     void (*onLastPreparation)();

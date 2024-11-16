@@ -66,24 +66,22 @@ void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds , const 
   instance = this;
 }
 
-
-
 void AxiusSSD::drawTextSelector(String text, uint8_t row, bool isselected) {
   if (!updateScreen) return;
-  uint8_t y = row*11+columnTopShift;
+  uint8_t y = row*rowHeight+columnTopShift;
   if (isselected)
-    display.fillCircle(2, y+3, 2, SSD1306_WHITE);
+    display.fillCircle(2, y-2, 2, SSD1306_WHITE);
   else
-    display.drawCircle(2, y+3, 2, SSD1306_WHITE);
+    display.drawCircle(2, y-2, 2, SSD1306_WHITE);
   display.setCursor(6,y);
   display.println(text);
 }
 
 void AxiusSSD::drawTextWithBorder(String text, uint8_t row, bool border) {
   if (!updateScreen) return;
-  uint8_t y = row*11+columnTopShift;
+  uint8_t y = row*rowHeight+columnTopShift;
   
-  if (border) display.fillRect(0, y-1, 128, 9, SSD1306_WHITE);
+  if (border) display.fillRect(0, y-rowHeight+1, 128, rowHeight+1, SSD1306_WHITE);
 
   display.setTextColor(border ? SSD1306_BLACK : SSD1306_WHITE);
   display.setCursor(1,y);
@@ -93,13 +91,13 @@ void AxiusSSD::drawTextWithBorder(String text, uint8_t row, bool border) {
 
 void AxiusSSD::drawTextSelectorWithBorder(String text, uint8_t row, bool isselected, bool border) {
   if (!updateScreen) return;
-  uint8_t y = row*11+columnTopShift;
+  uint8_t y = row*rowHeight+columnTopShift;
   if (isselected)
-    display.fillCircle(3, y+3, 2, SSD1306_WHITE);
+    display.fillCircle(3, y-2, 2, SSD1306_WHITE);
   else
-    display.drawCircle(3, y+3, 2, SSD1306_WHITE);
+    display.drawCircle(3, y-2, 2, SSD1306_WHITE);
   
-  if (border) display.fillRect(8, y-1, 122, 9, SSD1306_WHITE);
+  if (border) display.fillRect(8, y-rowHeight+1, 122, rowHeight+1, SSD1306_WHITE);
 
   display.setTextColor(border ? SSD1306_BLACK : SSD1306_WHITE);
   display.setCursor(9,y);
@@ -109,24 +107,24 @@ void AxiusSSD::drawTextSelectorWithBorder(String text, uint8_t row, bool isselec
 
 void AxiusSSD::drawLoadingLine(float cur, float max, uint8_t row) {
   if (!updateScreen) return;
-  uint8_t miny = row*11+columnTopShift;
-  display.drawRect(llminx, miny, llwidth, 11, SSD1306_WHITE);
-  if (cur == 0) return;
-
-  float cpm = (cur / max);
-  uint8_t midx = (uint8_t)(cpm * llwidth);
-  
-  display.fillRect(llminx, miny, midx, 11, SSD1306_WHITE);
+  uint8_t miny = row*rowHeight+columnTopShift;
+  display.drawRect(llminx, miny-rowHeight+2, llwidth, rowHeight-1, SSD1306_WHITE);
   display.setCursor(llwidth+8, miny);
+  float cpm = (cur / max);
   display.println(String((uint8_t)(cpm*100))+"%");
+  if (cur == 0) return;
+  uint8_t midx = (uint8_t)(cpm * llwidth);
+  display.fillRect(llminx, miny-rowHeight+2, midx, rowHeight-1, SSD1306_WHITE);
 }
 
 void AxiusSSD::drawText(String text, uint8_t row) {
   if (!updateScreen) return;
-  uint8_t y = row*11+columnTopShift;
+  uint8_t y = row*rowHeight+columnTopShift;
   display.setCursor(1,y);
   display.println(text);
 }
+
+
 
 
 
@@ -188,7 +186,7 @@ void AxiusSSD::updateStatusBar() {
 
   applyIcons();
 
-  display.setFont();
+  display.setFont(&Customs);
 }
 
 void AxiusSSD::setButtons(bool isUsingEncoder, const uint8_t UPButtonInput, const uint8_t DOWNButtonInput, const uint8_t OKButtonInput, bool isOkFromEncoder, bool isInvertButtonReadMethod) {
@@ -353,7 +351,7 @@ void AxiusSSD::tick() {
         }
         drawText("Preparing", 0);
         drawText(mods[HPS-1] -> getName(), 1);
-        drawLoadingLine(HPS-1, mods.size(), 2);
+        drawLoadingLine(HPS-1, mods.size(), 3);
         b3 = !b3;
       }
       if (HPS >= mods.size()) {
@@ -371,7 +369,7 @@ void AxiusSSD::tick() {
       if (readdwn()) {
         if (cursor < mods.size()-1) {
           cursor++;
-          if (cursor-startpos > 4) startpos++;
+          if (cursor-startpos > 6) startpos++;
         }
       }
       if (readup()) {
@@ -387,7 +385,7 @@ void AxiusSSD::tick() {
         mods[cursor] -> firsttick();
         firstOperationalTick = true;
       }
-      for (uint8_t i = startpos; i < startpos+5; i++) {
+      for (uint8_t i = startpos; i < startpos+7; i++) {
         if (i >= mods.size()) return;
         drawTextSelector(mods[i] -> getName(), i-startpos, i == cursor);
       }
@@ -469,7 +467,7 @@ void AxiusSSD::tomenu() {
   cursor = 0;
   startpos = 0;
   for (uint8_t i = 0; i < MEM.getParameterByte("cursor", modsCount()-1); i++) {
-    if (++cursor-startpos > 4) startpos++;
+    if (++cursor-startpos > 6) startpos++;
   }
   updateScreen = true;
   if (skipFirstCall) {
@@ -559,7 +557,6 @@ void AxiusSSD::esppl_rx_cb(void* buff, wifi_promiscuous_pkt_type_t type) {
     uint8_t* noconst = new uint8_t[ppkt->rx_ctrl.sig_len];
     memcpy(noconst, &ppkt->payload[0], ppkt->rx_ctrl.sig_len);
     //fuck constants
-
     instance->processUnknown(noconst, ppkt->rx_ctrl.rssi);
     //delete[] noconst;
   }
@@ -797,26 +794,29 @@ void AxiusSSD::esppl_init(void (*cb)(esppl_frame_info *info)) {
   user_cb = cb;
   frame_waitlist = 0;
   #ifdef ESP32
-  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+  ESP_ERROR_CHECK(esp_event_loop_create_default());
+  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+  ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
   //WiFi.mode(WIFI_AP_STA);
   ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-  ESP_ERROR_CHECK(esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE));
+  ESP_ERROR_CHECK(esp_wifi_start());
+  ESP_ERROR_CHECK(esp_wifi_set_channel(SHMMR_CHANNEL_DEFAULT, WIFI_SECOND_CHAN_NONE)); //error
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous(false));
-  //ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(82));
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(AxiusSSD::esppl_rx_cb));
   ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true));
   #else
   wifi_fpm_do_wakeup();
   wifi_fpm_close();
-  //esp_wifi_start();
   wifi_set_opmode(STATION_MODE);
   wifi_station_disconnect();
-  wifi_set_channel(esppl_channel);
+  wifi_set_channel(SHMMR_CHANNEL_DEFAULT);
   wifi_promiscuous_enable(false);
   wifi_set_promiscuous_rx_cb(AxiusSSD::esppl_rx_cb);
   wifi_promiscuous_enable(true);
   #endif
   esppl_sniffing_enabled = false;
+  wifiInitialized = true;
 }
 
 void AxiusSSD::esppl_sniffing_start() {
@@ -824,9 +824,16 @@ void AxiusSSD::esppl_sniffing_start() {
 }
 
 void AxiusSSD::esppl_sniffing_stop() {
+  wifiInitialized = false;
   esppl_sniffing_enabled = false;
 #ifdef ESP32
-  
+  ESP_ERROR_CHECK(esp_wifi_disconnect());
+  yield();
+  ESP_ERROR_CHECK(esp_wifi_stop());
+  ESP_ERROR_CHECK(esp_event_loop_delete_default());
+  yield();
+  ESP_ERROR_CHECK(esp_wifi_deinit());
+  yield();
 #else
   wifi_station_disconnect(); 
   wifi_set_opmode(NULL_MODE);

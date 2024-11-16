@@ -6,6 +6,13 @@
 #include "mod_class.h"
 #include "axiusPackets.h"
 
+struct Device {
+  uint8_t id;
+  String stype;
+  uint32_t lastTimeSeen;
+  int ss;
+};
+
 class Link : public Mod {
 public:
   String getName() override;
@@ -15,6 +22,14 @@ public:
 
   void supertick();
   void onPacket(uint8_t* frame, int rssi);
+  bool sendPacket(AxiusPacket* p);
+  Device* getDevice(uint8_t id) {
+    for (uint8_t i = 0; i < nearbyDevices.size(); i++) {
+      if (nearbyDevices[i].id == id) return &nearbyDevices[i];
+    }
+    return nullptr;
+  }
+  std::vector<Device> nearbyDevices;
 private:
   uint8_t state = 0, scursor = 0, sstartpos = 0, pcursor = 0, pstartpos = 0, ticksAfterLastPacket = 0;
   uint8_t beforeId = 255, beforesentid = 255;
@@ -22,19 +37,11 @@ private:
   const uint8_t pingNearDevicesEvery_seconds = 5;
   std::vector<uint8_t*> bufferedPackets;
   std::vector<int> rssiPack;
-  struct Device {
-    uint8_t id;
-    String stype;
-    uint32_t lastTimeSeen;
-    int ss;
-  };
-  std::vector<Device> nearbyDevices;
   BeaconBroadcastPacket finalBeaconPacket;
   std::vector<String> parameters {"call restart()", "call tomenu()", "test", "test2", "test3"};
   std::vector<String> curparameters;
 
   void processPacket(uint8_t id, uint8_t* packet, int rssi);
-  void sendPacket(AxiusPacket* p);
   
   void updateDevice(uint8_t id, String name, int rssi) {
     if (nearbyDevices.size() > 0) {

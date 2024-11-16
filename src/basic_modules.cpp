@@ -5,7 +5,13 @@ GyroscopeModule::GyroscopeModule() {
 
 void GyroscopeModule::update() {
   if (!isConnected()) return;
-  mpu.getEvent(&rotation, &velocity, &t); //gyro and acceleration flipped
+  mpu.getEvent(&rotation, &velocity, &t); //gyro and acceleration flipped cause im using unofficial module
+  rotX = rotation.gyro.x;
+  rotY = rotation.gyro.y;
+  rotZ = rotation.gyro.z;
+  velX = velocity.acceleration.x;
+  velY = velocity.acceleration.y;
+  velZ = velocity.acceleration.z;
   temperature = t.temperature;
   float deltaX = abs(rotation.acceleration.x - prevX);
   float deltaY = abs(rotation.acceleration.y - prevY);
@@ -15,7 +21,7 @@ void GyroscopeModule::update() {
   prevZ = rotation.acceleration.z;
   float shakeMagnitude = sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
   shakeLevel = mapShakeLevel(shakeMagnitude);
-  //Serial.println(shakeLevel);
+  
 }
 
 void GyroscopeModule::connect() {

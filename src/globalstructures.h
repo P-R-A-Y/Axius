@@ -87,6 +87,15 @@ void stringToUint8Array(const String &str, uint8_t *array, size_t arraySize);
 String uint8ArrayToString(uint8_t *array, size_t arraySize);
 
 #pragma once
+void writeCharArrayToUint8Array(char* charArray, size_t charSize, uint8_t* uint8Array, size_t startAddress);
+
+#pragma once
+void readUint8ArrayToCharArray(uint8_t* uint8Array, size_t startAddress, char* charArray, size_t charSize);
+
+#pragma once
+bool comparePrefix(char* prefix1, char* prefix2);
+
+#pragma once
 struct Point {
   float x;
   float y;

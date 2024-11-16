@@ -12,10 +12,10 @@ public:
     if (isConnected())  return "[+] Gyro "+String(temperature)+"C S"+String(shakeLevel);
     else                return "[-] Gyroscope";
   };
-  sensors_event_t rotation, velocity;
   float temperature;
+  float rotX, rotY, rotZ, velX, velY, velZ;
 private:
-  sensors_event_t t;
+  sensors_event_t t, rotation, velocity;
   Adafruit_MPU6050 mpu;
   float prevX = 0, prevY = 0, prevZ = 0, shakeLevel = 0;
   const float maxShakeThreshold = 50.0;

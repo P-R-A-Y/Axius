@@ -4,6 +4,7 @@
 #define PARAMETERSUPDATE 4
 #define PARAMETERCLICK 5
 #define BEACONBROADCAST 6
+#define CUSTOMPAYLOAD 7
 
 #ifndef AXIUSPACKETS_H
 #define AXIUSPACKETS_H
@@ -28,7 +29,7 @@ class BeaconRequestPacket : public AxiusPacket {
       senderId = PacketBuffer[28];
     }
 
-    void getData(uint8_t* targetBuffer) {
+    void getData(uint8_t* targetBuffer) override {
       targetBuffer[28] = senderId;
     }
 
@@ -54,7 +55,7 @@ class BeaconResponsePacket : public AxiusPacket {
       devtype = uint8ArrayToString(bytename, nameLength);
     }
 
-    void getData(uint8_t* targetBuffer) {
+    void getData(uint8_t* targetBuffer) override {
       targetBuffer[28] = responderId;
       targetBuffer[29] = devtype.length();
 
@@ -85,7 +86,7 @@ class BeaconBroadcastPacket : public AxiusPacket {
       devtype = uint8ArrayToString(bytename, nameLength);
     }
 
-    void getData(uint8_t* targetBuffer) {
+    void getData(uint8_t* targetBuffer) override {
       targetBuffer[28] = broadcasterId;
       targetBuffer[29] = devtype.length();
 
@@ -111,7 +112,7 @@ class ParametersRequestPacket : public AxiusPacket {
       requestFromDeviceId = PacketBuffer[28];
     }
 
-    void getData(uint8_t* targetBuffer) {
+    void getData(uint8_t* targetBuffer) override {
       targetBuffer[28] = requestFromDeviceId;
     }
 
@@ -147,7 +148,7 @@ class ParametersUpdatePacket : public AxiusPacket {
       }
     }
 
-    void getData(uint8_t* targetBuffer) {
+    void getData(uint8_t* targetBuffer) override {
       uint16_t index = 28;
       targetBuffer[index++] = sendToDeviceId;
       targetBuffer[index++] = totalParameterSize;
@@ -187,7 +188,7 @@ class ParameterClickPacket : public AxiusPacket {
       param = packetBuffer[29];
     }
 
-    void getData(uint8_t* targetBuffer) {
+    void getData(uint8_t* targetBuffer) override {
       targetBuffer[28] = clickDeviceId;
       targetBuffer[29] = param;
     }
@@ -201,7 +202,54 @@ class ParameterClickPacket : public AxiusPacket {
     }
 };
 
+class CustomPayloadPacket : public AxiusPacket {
+  public:
+    uint8_t targetDeviceID;
+    char prefix[6];
+    uint8_t payloadSize;
+    uint8_t* payload = nullptr;
 
+    ~CustomPayloadPacket() {
+      disposePayload();
+    }
+
+    void setData(uint8_t* packetBuffer) override {
+      targetDeviceID = packetBuffer[28];
+      readUint8ArrayToCharArray(packetBuffer, 29, prefix, 6);
+      payloadSize = packetBuffer[35];
+      if (payloadSize == 0) return;
+      payload = new uint8_t[payloadSize];
+      for (uint8_t i = 0; i < payloadSize; i++) {
+        payload[i] = packetBuffer[36+i];
+      }
+    }
+
+    void getData(uint8_t* targetBuffer) override {
+      targetBuffer[28] = targetDeviceID;
+      writeCharArrayToUint8Array(prefix, 6, targetBuffer, 29);
+      targetBuffer[35] = payloadSize;
+      if (payloadSize == 0) return;
+      for (uint8_t i = 0; i < payloadSize; i++) {
+        targetBuffer[36+i] = payload[i];
+      }
+      disposePayload();
+    }
+
+    void disposePayload() {
+      if (payload != nullptr) {
+        delete[] payload;
+        payload = nullptr;
+      }
+    }
+
+    uint8_t getSize() override {
+      return 8 + payloadSize;
+    }
+    
+    uint8_t getType() override {
+      return CUSTOMPAYLOAD;
+    }
+};
 
 
 

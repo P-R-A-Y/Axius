@@ -97,6 +97,16 @@ void Link::tick() {
 void Link::supertick() {
   if (millis() - lastRequestTime > 1000) {
     lastRequestTime = millis();
+    /*CustomPayloadPacket cpp;
+    cpp.targetDeviceID = 3;
+    strcpy(cpp.prefix, {"TESTST"});
+    cpp.payloadSize = 128;
+    cpp.payload = new uint8_t[cpp.payloadSize];
+    for (uint8_t i = 0; i < cpp.payloadSize; i++) {
+      cpp.payload[i] = 125;
+    }
+    sendPacket(&cpp);
+    cpp.disposePayload();*/
     sendPacket(&finalBeaconPacket);
   }
 
@@ -230,28 +240,37 @@ void Link::processPacket(uint8_t id, uint8_t* packet, int rssi) {
         sendPacket(&pup);
       }
     }
+  } else if (id == CUSTOMPAYLOAD) {
+    CustomPayloadPacket cpp;
+    cpp.setData(packet);
+    if (cpp.targetDeviceID != axius.MEM.getParameterByte("deviceId", 255)) return;
+    if (axius.hasIncomingPayloadListener)
+      axius.onCustomPayloadReceive(rssi, packet[27], cpp.prefix, cpp.payloadSize, cpp.payload);
   } else {
     Serial.print("unknown packet: ");
     Serial.println(id);
+    return;
   }
 }
 
-void Link::sendPacket(AxiusPacket* p) {
+bool Link::sendPacket(AxiusPacket* p) {
   uint8_t size = 28 + p->getSize();
   uint8_t* packet = new uint8_t[size];
   memcpy(&packet[0], &pseudoRealisticHeader, 28);
   packet[24] = size - 28; //set data size
-  packet[25] = p->getType(); //set type
+  packet[25] = p->getType(); //set type 
   uint8_t newid = random(254);
   if (newid == beforesentid) newid = 255;
   packet[26] = newid; //set packet id
   packet[27] = axius.MEM.getParameterByte("deviceId", 255); //device id
   p->getData(packet);
+  bool sended = false;
   for (uint8_t i = 0; i < 5; i++) {
-    bool sended = axius.sendWifiFrame(packet, size);
+    sended = axius.sendWifiFrame(packet, size);
     delay(5);
     if (sended) break;
   }
   beforesentid = newid;
   delete[] packet;
+  return sended;
 }

@@ -96,7 +96,7 @@ void MemoryManagerMod::tick() {
       if (AxiusSSD::instance->readdwn()) {
         if (cursor < statepick.size()-1) {
           cursor++;
-          if (cursor-startpos > 2) startpos++;
+          if (cursor-startpos > 4) startpos++;
         }
       }
       if (AxiusSSD::instance->readup()) {
@@ -119,7 +119,7 @@ void MemoryManagerMod::tick() {
           state = 2;
         }
       }
-      for (byte i = startpos; i < startpos + (statepick.size() < 3 ? statepick.size() : 3); i++) {
+      for (byte i = startpos; i < startpos + (statepick.size() < 5 ? statepick.size() : 5); i++) {
         AxiusSSD::instance->drawTextSelector(statepick[i], i-startpos + 2, i == cursor);
       }
     }
@@ -136,7 +136,7 @@ void MemoryManagerMod::tick() {
     if (AxiusSSD::instance->readdwn()) {
       if (mcursor < AxiusSSD::instance->modules.size()-1) {
         mcursor++;
-        if (mcursor-mstartpos > 2) mstartpos++;
+        if (mcursor-mstartpos > 4) mstartpos++;
       }
     }
     if (AxiusSSD::instance->readup()) {
@@ -145,7 +145,7 @@ void MemoryManagerMod::tick() {
         if (mcursor-mstartpos < 0) mstartpos--;
       }
     }
-    for (uint8_t i = mstartpos; i < mstartpos + (AxiusSSD::instance->modules.size() < 3 ? AxiusSSD::instance->modules.size() : 3); i++) {
+    for (uint8_t i = mstartpos; i < mstartpos + (AxiusSSD::instance->modules.size() < 5 ? AxiusSSD::instance->modules.size() : 5); i++) {
       AxiusSSD::instance->drawTextSelector(AxiusSSD::instance->modules[i]->getName(), i-mstartpos + 2, i == mcursor);
     }
   } else if (state == 1) {
@@ -159,7 +159,7 @@ void MemoryManagerMod::tick() {
       } else {
         if (cursor < settings.size()-1) {
           cursor++;
-          if (cursor-startpos > 3) startpos++;
+          if (cursor-startpos > 5) startpos++;
         }
       }
     }
@@ -195,10 +195,14 @@ void MemoryManagerMod::tick() {
         } else if (settings[cursor]->classType() == RMEMP) {
           settings[cursor]->name = "0. " + settings[cursor]->name;
           writeEEPROM(settings[cursor]->address, 0x00);
+        } else if (settings[cursor]->classType() == PETP) {
+          writeEEPROM(settings[cursor]->address, 0x00);
+          writeEEPROM(settings[cursor]->address, 0x00);
+          settings[cursor]->name = "undefined";
         }
       }
     }
-    for (byte i = startpos; i < startpos + (settings.size() < 4 ? settings.size() : 4); i++) {
+    for (byte i = startpos; i < startpos + (settings.size() < 6 ? settings.size() : 6); i++) {
       if (fixedOnParameter) {
         if (i == cursor) AxiusSSD::instance->drawTextSelector(settings[i]->toString(), i-startpos + 1, true);
       } else {
