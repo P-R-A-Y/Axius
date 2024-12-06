@@ -117,6 +117,9 @@ void MemoryManagerMod::tick() {
           ignoreBrokenMemory = true;
         } else if (cursor == 4) {
           state = 2;
+        } else if (cursor == 5) {
+          setParameterBool("useWithcFont", !uwf.curval);
+          AxiusSSD::instance->resetFont();
         }
       }
       for (byte i = startpos; i < startpos + (statepick.size() < 5 ? statepick.size() : 5); i++) {

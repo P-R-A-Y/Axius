@@ -23,6 +23,7 @@
 
 #include <Fonts/Picopixel.h>
 #include <Customs.h>
+#include <WitchHouseFont.h>
 
 #include "globalstructures.h"
 #include "logovideo.h"
@@ -174,7 +175,7 @@ void ICACHE_RAM_ATTR readEncoder();
 class AxiusSSD {
   public:
     AxiusSSD();
-    void begin(String devname, MemoryChip c, float maxAfkSeconds, const uint8_t defaultOKButton, bool isInvertButtonReadMethod);
+    void begin(String devname, MemoryChip c, float maxAfkSeconds, const uint8_t defaultOKButton, bool isInvertButtonReadMethod, uint32_t onBootFreeHeap);
     void setButtons(bool usingEncoder, const uint8_t UPButtonInput, const uint8_t DOWNButtonInput, const uint8_t OKButtonInput, bool isOkFromEncoder, bool isInvertButtonReadMethod);
     void setFlip(bool f) {
       if (f == isFlip) return;
@@ -191,7 +192,10 @@ class AxiusSSD {
     void setIncomingPacketListener    (void (*func)(esppl_frame_info *info));
     void setIncomingPayloadListener   (void (*func)(float rssi, uint8_t sender, char* prefix, uint8_t payloadSize, uint8_t* payload)) { onCustomPayloadReceive = func; hasIncomingPayloadListener = true;}
     
-    
+    void resetFont() {
+      if (MEM.getParameterBool("useWithcFont")) display.setFont(&WitchHouseFont);
+      else                                      display.setFont(&Customs);
+    }
 
     void updatestatusbar();
     void updatebuttons();
@@ -225,9 +229,10 @@ class AxiusSSD {
     State state = State::startup;
     uint32_t lastActionTime = 0;
     uint8_t ups = 0, dwns = 0, oks = 0;
-    String additionalTextField = "", deviceName = "UNNAMED";
+    String deviceName = "UNNAMED";
     MemoryChip chip;
     bool hasIncomingPayloadListener = false;
+    bool wifiInitialized = false;
 
     void tomenu();
     void toerror();
@@ -290,6 +295,7 @@ class AxiusSSD {
     unsigned long previousMillis = 0;
     const uint8_t afkBarWidth = 20;
     uint8_t curLogoFrame = 0;
+    uint32_t onBootFreeHeap = 1;
 
     std::vector<Mod*> mods;
     uint8_t findModeIndexByName(String name) {
@@ -304,7 +310,6 @@ class AxiusSSD {
     bool logoanim1stframe = true;
     uint32_t lastLAFChange = 0;
     uint8_t curModule = 0;
-    bool wifiInitialized = false;
 
     void (*renderInPSM)();
     void (*onLastPreparation)();

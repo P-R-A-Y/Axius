@@ -130,16 +130,17 @@ public:
   uint8_t getStateImage();
 
   const uint8_t EEPROM_ADDR = 0x50;
-  byte error = 0;
+  uint8_t error = 0;
 
   BoolParameter exit       {"exit", false};
   BoolParameter version    {"v1?", false};
   ByteParameter cs         {"cursor", 0};
   ByteParameter devid      {"deviceId", random(256)};
   BoolParameter mbu        {"modBackUp", false};
-  BoolParameter cim        {"crashedInMod", false}; 
+  BoolParameter cim        {"crashedInMod", false};
+  BoolParameter uwf        {"useWithcFont", true};
 
-  std::vector<Parameter*> settings { &exit, &version, &cs, &devid, &mbu, &cim };
+  std::vector<Parameter*> settings { &exit, &version, &cs, &devid, &mbu, &cim, &uwf };
 
 private:
   void checkmem();
@@ -150,7 +151,7 @@ private:
   uint8_t state = 0, cursor = 0, startpos = 0, iconanimstate = 1, mcursor = 0, mstartpos = 0;
   unsigned long diskIconAnimTime = 0;
   const uint8_t numbytes = 1; //help compiler with choice between uint8_t requestFrom(int, int); and uint8_t requestFrom(uint8_t, uint8_t);
-  const std::vector<String> statepick {"exit", "parameters", "restart", "eeprom test", "modules"};
+  const std::vector<String> statepick {"exit", "parameters", "restart", "eeprom test", "modules", "switch font"};
 
   bool ignoreBrokenMemory = false;
 };

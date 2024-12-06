@@ -33,7 +33,8 @@ extern "C" {
 void AxiusSSD::addModule(Module* m) {modules.push_back(m);}
 AxiusSSD::AxiusSSD() : display(Adafruit_SSD1306(128, 64, &Wire, -1)) {}
 AxiusSSD* AxiusSSD::instance = nullptr;
-void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds , const uint8_t defaultOKButton, bool isInvertButtonReadMethod) {
+void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds , const uint8_t defaultOKButton, bool isInvertButtonReadMethod, uint32_t onBootFreeHeapL) {
+  onBootFreeHeap = onBootFreeHeapL;
   okb = defaultOKButton;
   if (isInvertButtonReadMethod) {
     invertButtonReadMethod = true;
@@ -48,7 +49,7 @@ void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds , const 
     ESP.restart();
   }
   display.clearDisplay();
-  display.display();
+  display.setFont(&Customs);
 
   for (uint8_t i = 0; i < modules.size(); i++) {
     modules[i]->connect();
@@ -167,16 +168,27 @@ void AxiusSSD::updateStatusBar() {
   }
   display.drawBitmap(0, 1, (logoanim1stframe ? logoanim1 : logoanim2), 11, 11, SSD1306_WHITE);
 
-  display.setFont(&Picopixel);
+  /*display.setFont(&Picopixel);
   float frequency = 1000.0 / (millis() - previousMillis);
   previousMillis = millis();
   //Serial.println(frequency);
   display.setCursor(107,4);
   display.print(frequency);
-  display.print("F");
+  display.print("F");*/
 
-  display.setCursor(107,10);
-  display.print(additionalTextField);
+  if (onBootFreeHeap != 1) {
+    float delta = 1.0 - (float)ESP.getFreeHeap() / onBootFreeHeap;
+    display.drawRect(106, 0, 22, 11, SSD1306_WHITE);
+    const float totalPoints = 20 * 9;
+    uint16_t points = ceil(totalPoints * delta);
+    for (uint8_t x = 0; x <= 19; x++) {
+      for (uint8_t y = 0; y <= 8; y++) {
+        if (points == 0.0) break; 
+        display.drawPixel(107 + x, 1 + 8 - y, SSD1306_WHITE);
+        points--;
+      }
+    }
+  }
 
   display.drawRect(13, 2, afkBarWidth, 7, SSD1306_WHITE);
   if (millis() - lastActionTime < maxAfkSeconds) {
@@ -185,8 +197,6 @@ void AxiusSSD::updateStatusBar() {
   }
 
   applyIcons();
-
-  display.setFont(&Customs);
 }
 
 void AxiusSSD::setButtons(bool isUsingEncoder, const uint8_t UPButtonInput, const uint8_t DOWNButtonInput, const uint8_t OKButtonInput, bool isOkFromEncoder, bool isInvertButtonReadMethod) {
@@ -358,6 +368,8 @@ void AxiusSSD::tick() {
         tomenu();
         HPS = -1;
         onLastPreparation();
+        resetFont();
+        
         FULLPREPARED = true;
         if (MEM.getParameterBool("modBackUp") && MEM.getParameterBool("crashedInMod")) {
           oks = 1;

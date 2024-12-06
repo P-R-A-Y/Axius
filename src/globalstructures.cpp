@@ -12,7 +12,10 @@ void BeaconPacketConstructor::setProperties(String name, bool wpa2, int8_t hashT
   packetSize = 109 - 32 + nameSize;
   if (!wpa2) packetSize -= 26;
 
-  delete[] packet;
+  if (packet) {
+    delete[] packet;
+    packet = nullptr;
+  }
   packet = new uint8_t[packetSize];
 
   memcpy(&packet[0], &beaconPacketTemplate[0], 38);                              // front part

@@ -120,14 +120,27 @@ bool blinkNow(uint16_t timeScale);
 #pragma once
 class BeaconPacketConstructor {
   public:
+    /*~BeaconPacketConstructor() { this is ass
+      if (packet) Serial.println((uintptr_t)packet, HEX);
+      if (packet) {
+        delete[] packet;
+        packet = nullptr;
+      }
+    }*/
     void setProperties(String name, bool wpa2, int8_t hashTagIndex, uint8_t* mac, bool cd1s, bool hashTagIndexBackwards);
     void setMac(uint8_t* mac);
     void setChannel(uint8_t c);
     uint8_t* getBytes();
     uint8_t getPacketSize();
     uint8_t getChannel();
+    void manualDestructPacket() {
+      if (packet) {
+        delete[] packet;
+        packet = nullptr;
+      }
+    }
   private:
-    uint8_t* packet = new uint8_t[0];
+    uint8_t* packet = nullptr;
     uint8_t nameSize, packetSize, channel;
 };
 
