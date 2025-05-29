@@ -6,6 +6,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <memory>
+#include "common_utilities.h"
+#include "image_storage.h"
 
 #define JP 0
 #define BOOLP 1
@@ -105,11 +107,11 @@ public:
   }
 };
 
-class MemoryManagerMod : public Mod {
+class ManagerMod : public Mod {
 public:
-  MemoryManagerMod();
+  ManagerMod(AxiusSSD* axiusInstance) : Mod(axiusInstance) {};
   void setup() override;
-  String getName() override { return "Options"; };
+  String getName() override { return "System"; };
   void tick() override;
   void firsttick() override;
 
@@ -119,41 +121,47 @@ public:
   uint8_t* readSeveralBytesEEPROM(uint16_t eeaddress, uint16_t numbytes);
   void writeSeveralBytesEEPROM(uint16_t eeaddress, const uint8_t* data, uint16_t numbytes);
   void onMemoryError();
-  bool getParameterBool       (const String &alias                   );
-  void setParameterBool       (const String &alias, const byte value );
-  uint8_t getParameterByte    (const String &alias,     uint8_t value);
-  void setParameterByte       (const String &alias,     uint8_t value);
-  void setParameterFloat      (const String &alias, const float value);
-  float getParameterFloat     (const String &alias                   );
-  uint16_t getBytearrayAddres (const String &alias                   );
-  uint16_t getBytearraySize   (const String &alias                   );
-  uint8_t getStateImage();
+  bool getParameterBool         (const String &alias                   );
+  void setParameterBool         (const String &alias, const byte value );
+  uint8_t getParameterByte      (const String &alias,     uint8_t value);
+  void setParameterByte         (const String &alias,     uint8_t value);
+  void setParameterFloat        (const String &alias, const float value);
+  float getParameterFloat       (const String &alias                   );
+  uint16_t getAddresOfParameter (const String &alias                   );
+  uint16_t getBytearraySize     (const String &alias                   );
+  void updateIcon();
 
   const uint8_t EEPROM_ADDR = 0x50;
   uint8_t error = 0;
 
-  BoolParameter exit       {"exit", false};
-  BoolParameter version    {"v1?", false};
-  ByteParameter cs         {"cursor", 0};
-  ByteParameter devid      {"deviceId", random(256)};
-  BoolParameter mbu        {"modBackUp", false};
-  BoolParameter cim        {"crashedInMod", false};
-  BoolParameter uwf        {"useWithcFont", true};
+  BoolParameter  exit       {"exit", false};
+  BoolParameter  version    {"v1?", true};
+  ByteParameter  cs         {"cursor", 0};
+  ByteParameter  devid      {"deviceId", uint8_t(random(256))};
+  BoolParameter  mbu        {"modBackUp", false};
+  BoolParameter  cim        {"crashedInMod", false};
+  BoolParameter  ucf        {"useCursedFont", false};
+  ByteParameter  contrast   {"displayContrast", 100};
+  ReservedMemory res        {"reserved", 10};
 
-  std::vector<Parameter*> settings { &exit, &version, &cs, &devid, &mbu, &cim, &uwf };
+  std::vector<Parameter*> settings { &exit, &version, &cs, &devid, &mbu, &cim, &ucf, &contrast, &res };
 
+  IconProvider icon;
 private:
   void checkmem();
   void loadSavedData();
 
-  uint16_t memcheckaddr = 0, memcheckaddrmax = 32768;
-  bool memoryWorking = false, fixedOnParameter = false;
-  uint8_t state = 0, cursor = 0, startpos = 0, iconanimstate = 1, mcursor = 0, mstartpos = 0;
-  unsigned long diskIconAnimTime = 0;
-  const uint8_t numbytes = 1; //help compiler with choice between uint8_t requestFrom(int, int); and uint8_t requestFrom(uint8_t, uint8_t);
-  const std::vector<String> statepick {"exit", "parameters", "restart", "eeprom test", "modules", "switch font"};
+  uint32_t lastMemRead = 0, lastMemWrite = 0;
 
+  uint16_t memcheckaddr = 0, memcheckaddrmax = 0, curaddress = 0;
+  bool fixedOnParameter = false, dim = false, memoryWorking = false;
+  uint8_t state = 0, cursor = 0, startpos = 0, mcursor = 0, mstartpos = 0;
+  std::vector<String> statepick {"exit", "parameters", "restart", "eeprom test", "modules", "switch font", "contrast: ", "switch dimming", "keyboard test", "RAM rot: x", "" };
   bool ignoreBrokenMemory = false;
+
+  const uint8_t* IMAGEBUFFER_1[5] = {
+    diskgood, disknotconnected, diskread, diskwrite, diskreadwrite
+  };
 };
 
 

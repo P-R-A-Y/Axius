@@ -1,6 +1,8 @@
 #include "module.h"
-#include <Adafruit_MPU6050.h>
+#include "FastIMU.h"
 #include <Adafruit_INA219.h>
+
+#define IMU_ADDRESS 0x68
 
 class GyroscopeModule : public Module {
 public:
@@ -15,10 +17,13 @@ public:
   float temperature;
   float rotX, rotY, rotZ, velX, velY, velZ;
 private:
-  sensors_event_t t, rotation, velocity;
-  Adafruit_MPU6050 mpu;
+  MPU6050 IMU;
+  calData calib = { 0 };
+  AccelData accelData;
+  GyroData gyroData;
+  MagData magData;
   float prevX = 0, prevY = 0, prevZ = 0, shakeLevel = 0;
-  const float maxShakeThreshold = 50.0;
+  const float maxShakeThreshold = 500.0;
   const float minShakeThreshold = 0.05;
   float mapShakeLevel(float magnitude) {
     if (magnitude < minShakeThreshold) {

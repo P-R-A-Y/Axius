@@ -1,95 +1,74 @@
 
 # Axius
 
-This is core library for my arduino based devices and projects which are created on esp8266-like boards with SSD1306 displays
+Ядро для моих проектиков на esp8266/esp32 и с 128x64 OLED монохромками на чипах SSD1306 и SH110
 
-## Example of raw-launch of this library
+## Пример raw-запуска сией библиотеки
 
 ```c++
-#include <AxiusSSD.h>
-AxiusSSD axius; //main instance (can be created only 1 time)
+# узнаем таким нехитрым путем сколько изначально свободной оператвики под кучу
+uint32_t onBootFreeHeap = ESP.getFreeHeap(); 
 
-int upb = D8, dwnb = D0, okb = D7; //button defenitions
+#include <AxiusSSD.h>
+AxiusSSD axius;
+
 
 void setup() {
   randomSeed(148854271337);
   Serial.begin(115200);
+  Wire.begin(D5, D6);
   Wire.setClock(400000);
 
-  axius.setLockScreen(renderInLockScreen); //what will be displayed in the "afk" screen
-  axius.setLastPreparation(lastPreparation); //what will be executed after all "mods" prepared
-  axius.setIconApplyer(applyIcons); //here you can put func which will be draw icons at the top of the screen
-  axius.setLockScreenOverrideChecker(isLockScreenAnimationOverrided);
-  axius.setIncomingPacketListener(onIncomingPacket); //listener for raw wifi packets
+  axius.setLockScreen(lockScreenRender);
+  axius.setLastPreparation(lastPreparation);
+  axius.setIconApplyer(applyIcons);
+  axius.setLockScreenOverrideChecker(isLockScreenOverrided);
+  axius.setIncomingPacketListener(onIncomingPacket);
+  axius.setIncomingPayloadListener(onIncomingPayload);
 
-  axius.begin("AXIUS TEST", MemoryChip::c16, 10000.0f); //parameters: name of current device, type of memory chip (24c16 or 24c256) also can work without chip, time before device goes to afk mode in ms
+  # устанавливаем имя устройства, чип памяти, время афк таймаута, пин с кнопкой ok, принцип считывания показаний о нажатии кнопки, и передаем изначальный размер кучи
+  axius.begin("Test Device", MemoryChip::c256, 10000.0f, D0, true, onBootFreeHeap); 
 }
 
+void onIncomingPayload(float rssi, uint8_t sender, char* prefix, uint8_t payloadSize, uint8_t* payload) {
+  # обработка пакетов полезной нагрузки используемых при общении аксиусов между собой
+}
 
 void lastPreparation() {
-  upb = D5, dwnb = D6; //here you last time to redefine input pins
+  # функция вызывающаяся после завершения подготовки всех режимов
+  axius.setButtons(false, D0, D1, D2, false, true);
 }
 
 void onIncomingPacket(esppl_frame_info *info) {
-  
+  # сюда приходят все фреймы которые видит еспшка
 }
 
-bool isLockScreenAnimationOverrided() {
-  return false;
+bool isLockScreenOverrided() {
+  # указывает на использование кастомного афк-экрана
+  return true;
 }
 
-void renderInLockScreen() {
-  
+void lockScreenRender() {
+  # что рендерится в кастомном афк-экране
+  axius.showStatusBar = false;
+  axius.drawText("AFK MODE", -1);
 }
 
+uint32_t lastSensorsCheck = 0;
 void loop() {
-  updatebuttons(); //update the button states
   axius.tick();
   axius.endRender();
 }
 
 void applyIcons() {
-  axius.additionalTextField = "test"; //text under fps meter
-}
-
-int voltage;
-void updatebuttons() {
-  voltage = digitalRead(okb);
-  if (voltage == HIGH) {
-    if (axius.oks == 0) axius.oks = 1;
-  } else if (voltage == LOW) {
-    if (axius.oks == 1) {
-      axius.oks = 3;
-      axius.lastActionTime = millis();
-    }
-  }
-  
-  if (!axius.FULLPREPARED) return;
-
-  voltage = digitalRead(upb);
-  if (voltage == HIGH) {
-    if (axius.ups == 0) axius.ups = 1;
-  } else if (voltage == LOW) {
-    if (axius.ups == 1) {
-      axius.ups = 3;
-      axius.lastActionTime = millis();
-    }
-  }
-  voltage = digitalRead(dwnb);
-  if (voltage == HIGH) {
-    if (axius.dwns == 0) axius.dwns = 1;
-  } else if (voltage == LOW) {
-    if (axius.dwns == 1) {
-      axius.dwns = 3;
-      axius.lastActionTime = millis();
-    }
-  }
+  # вызывается между tick() и endRender()
+  # самое время нарисовать свои иконки на верхней панели
 }
 ```
 
 
-## How it would look irl
+## Демо
 
-On Axius NETMTT v1
+Так выглядит дефолтная программа на примере корпуса AxiusNetMTTv1. На данный момент я его уже разобрал и это единственная фотка которая от него осталась
 
 ![Image](images/preview.jpg)

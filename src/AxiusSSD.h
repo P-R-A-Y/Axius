@@ -12,9 +12,24 @@
 #define rowHeight      7
 #define columnTopShift 18
 
+#include <Arduino.h>
+
+static int* heapStart = ((int*)malloc(1));
+static int* heapEnd = heapStart + ESP.getFreeHeap();
+
+//#define WHITE 1
+//#define BLACK 0
+
 #include <Wire.h>
 #include <Adafruit_GFX.h>
+#include "compile_parameters.h"
+//.................................
+#ifdef USE_SH110X
+#include <Adafruit_SH110X.h>
+#else
 #include <Adafruit_SSD1306.h>
+#endif
+//.................................
 #include <vector>
 
 #ifdef ESP32
@@ -22,17 +37,18 @@
 #endif
 
 #include <Fonts/Picopixel.h>
-#include <Customs.h>
-#include <WitchHouseFont.h>
+#include <SuperSmallFont.h>
+#include <CursedFont.h>
 
-#include "globalstructures.h"
-#include "logovideo.h"
+#include "common_utilities.h"
+#include "image_storage.h"
 
 #include "mod_class.h"
 
-#include "memory_manager_mod.h"
+#include "manager_mod.h"
 #include "link.h"
 #include "basic_modules.h"
+#include "disk.h"
 
 enum class State {
   startup, menu, restart, modwork, lockscreen
@@ -174,7 +190,12 @@ void ICACHE_RAM_ATTR readEncoder();
 
 class AxiusSSD {
   public:
-    AxiusSSD();
+    #ifdef USE_SH110X
+      AxiusSSD() : display(Adafruit_SH1106G(128, 64, &Wire, -1)), about(this, 0x0001), link(this, 0x0002), MGR(this, 0x0000), disk(this, 0x0003) {};
+    #else
+      AxiusSSD() : display(Adafruit_SSD1306(128, 64, &Wire, -1)), about(this, 0x0001), link(this, 0x0002), MGR(this, 0x0000), disk(this, 0x0003) {};
+    #endif
+    
     void begin(String devname, MemoryChip c, float maxAfkSeconds, const uint8_t defaultOKButton, bool isInvertButtonReadMethod, uint32_t onBootFreeHeap);
     void setButtons(bool usingEncoder, const uint8_t UPButtonInput, const uint8_t DOWNButtonInput, const uint8_t OKButtonInput, bool isOkFromEncoder, bool isInvertButtonReadMethod);
     void setFlip(bool f) {
@@ -183,8 +204,20 @@ class AxiusSSD {
       if (f) display.setRotation(2);
       else display.setRotation(0);
     }
-    void addMod(Mod* m);
-    void addModule(Module* m);
+    void setContrast(uint8_t contrastPercent) {
+      display.ssd1306_command(SSD1306_SETCONTRAST);
+      display.ssd1306_command(uint8_t(255.0 * (contrastPercent / 100.0)));
+    }
+    void setDisplayPower(bool state) {
+      if(state) {
+        display.ssd1306_command(SSD1306_DISPLAYON);
+      } else {
+        display.ssd1306_command(SSD1306_DISPLAYOFF);
+      }
+    }
+    void addMod(Mod* m)           {  mods.push_back(m);   };
+    void addModule(Module* m)     { modules.push_back(m); };
+    void addIcon(IconProvider* i) {  icons.push_back(i);  };
     void setLockScreen                (void (*func)(                      ));
     void setLastPreparation           (void (*func)(                      ));
     void setIconApplyer               (void (*func)(                      ));
@@ -193,12 +226,18 @@ class AxiusSSD {
     void setIncomingPayloadListener   (void (*func)(float rssi, uint8_t sender, char* prefix, uint8_t payloadSize, uint8_t* payload)) { onCustomPayloadReceive = func; hasIncomingPayloadListener = true;}
     
     void resetFont() {
-      if (MEM.getParameterBool("useWithcFont")) display.setFont(&WitchHouseFont);
-      else                                      display.setFont(&Customs);
+      if (MGR.getParameterBool("useCursedFont")) display.setFont(&CursedFont);
+      else                                       display.setFont(&SuperSmallFont);
     }
 
-    void updatestatusbar();
-    void updatebuttons();
+    uint16_t getTextWidth(String text) {
+      int16_t buff;
+      uint16_t textWidth, ubuff;
+      display.getTextBounds(text, 0, 0, &buff, &buff, &textWidth, &ubuff);
+      return textWidth;
+    }
+
+    void updateButtons();
     void tick();
     void endRender();
     void updateStatusBar();
@@ -208,46 +247,56 @@ class AxiusSSD {
     void drawTextWithBorder(String text, uint8_t row, bool border);
     void drawLoadingLine(float cur, float max, uint8_t row);
     void drawText(String text, uint8_t row);
-    bool readup();
-    bool readdwn();
-    bool readok();  
-    void resetbuttons();
-
+    void drawTextMiddle(String text, uint8_t row);
+    bool clickX();
+    bool clickY();
+    bool clickZ();  
+    void resetButtons();
     uint8_t modsCount();
+    
+    void enableKeyboard(String infobar1, String infobar2, uint8_t limitInputSize);
+    void keyboardRender();
+    bool isKeyboardBack();
+    bool isKeyboardNext();
+    String keyboardResult();
+    void setKeyboardUserInput(String userinput);
 
+#if defined(USE_SH110X)
+    Adafruit_SH1106G display;
+#else
     Adafruit_SSD1306 display;
-    MemoryManagerMod MEM;
+#endif
+    ManagerMod MGR;
     Link link;
-    About a;
-    int8_t HPS = 0;
-    uint8_t cursor = 0;
-    uint8_t startpos = 0;
+    Disk disk;
+
     bool showStatusBar = false;
     //bool fullDisableRender = false;
     bool updateScreen = true;
-    bool FULLPREPARED = false;
-    State state = State::startup;
-    uint32_t lastActionTime = 0;
-    uint8_t ups = 0, dwns = 0, oks = 0;
-    String deviceName = "UNNAMED";
+    bool ISREADY = false;
+    String deviceName = "#";
     MemoryChip chip;
     bool hasIncomingPayloadListener = false;
     bool wifiInitialized = false;
+
+    bool disableLogo = false;
+    bool minimalStatusBar = false;
+
+    char loadingCharacter;
+    String sLoadingCharacter = ".";
 
     void tomenu();
     void toerror();
     void restart();
     void forceRestart();
-    void stopPacketListening();
-    void startPacketListening();
+    void disableWIFI();
+    void enableWIFI();
     bool sendWifiFrame(uint8_t *buf, int len);
-    void wifi_set_chan(uint8_t channel);
+    void set_channel(uint8_t channel);
     void processUnknown(uint8_t* frame, int rssi);
+    void reverseWIFIBackToNormalMode();
 
     static AxiusSSD* instance;
-    //---------------------------------------------------------------------ESPPL
-    uint8_t esppl_channel = ESPPL_CHANNEL_DEFAULT;
-    uint8_t esppl_default_mac[ESPPL_MAC_LEN] = {0x00,0x00,0x00,0x00,0x00,0x00};
     
     int frame_waitlist = 0;
     bool esppl_sniffing_enabled = false;
@@ -256,11 +305,6 @@ class AxiusSSD {
 #else
     static void esppl_rx_cb(uint8_t *buf, uint16_t len);
 #endif
-    void (*user_cb)(esppl_frame_info *info);
-    void esppl_buf_to_info(uint8_t *frame, signed rssi, uint16_t len);
-    void esppl_set_channel(int channel);
-    bool esppl_process_frames();
-    void esppl_init(void (*cb)(esppl_frame_info *info));
     void set_max_tx_power(float percent);
 
     GyroscopeModule gyroscope;
@@ -274,10 +318,35 @@ class AxiusSSD {
       uint8_t n = findModeIndexByName(name);
       if (n != 256) {
         cursor = n;
+        mods[cursor] -> firsttick();
+        firstOperationalTick = true;
+        lastActionTime = millis();
         state = State::modwork;
       }
     }
+    void esppl_buf_to_info(uint8_t *frame, signed rssi, uint16_t len);
+    void (*user_cb)(esppl_frame_info *info);
   private:
+    int8_t HPS = 0;
+    State state = State::startup;
+    uint8_t cursor = 0;
+    uint8_t startpos = 0;
+    uint32_t lastActionTime = 0;
+    uint8_t ups = 0, dwns = 0, oks = 0;
+    uint32_t upClickTime = 0, dwnClickTime = 0, okClickTime = 0, upHoldCooldown = 0, dwnHoldCooldown = 0, okHoldCooldown = 0;
+    const uint32_t HOLDTIME = 350;
+    const uint32_t MAX_HOLD_COOLDOWN = 50, MIN_HOLD_COOLDOWN = 200;
+    uint32_t onBootFreeHeap = 1;
+    uint8_t esppl_channel = ESPPL_CHANNEL_DEFAULT;
+    uint8_t esppl_default_mac[ESPPL_MAC_LEN] = {0x00,0x00,0x00,0x00,0x00,0x00};
+    void esppl_set_channel(int channel);
+    bool esppl_process_frames();
+    void esppl_init(void (*cb)(esppl_frame_info *info));
+    About about;
+    IconProvider wifiIcon;
+    char loadingCharacters[5] = {'|', '/', '-', '\\'};
+    uint8_t loadingCharacterIndex = 0;
+    uint32_t lastLoadingCharacterSwingTime = 0;
     bool isFlip = false;
     void esppl_sniffing_start();
     void esppl_sniffing_stop();
@@ -295,8 +364,7 @@ class AxiusSSD {
     unsigned long previousMillis = 0;
     const uint8_t afkBarWidth = 20;
     uint8_t curLogoFrame = 0;
-    uint32_t onBootFreeHeap = 1;
-
+    std::vector<IconProvider*> icons;
     std::vector<Mod*> mods;
     uint8_t findModeIndexByName(String name) {
       for (uint8_t i = 0; i < mods.size(); i++) {
@@ -304,7 +372,7 @@ class AxiusSSD {
           return i;
         }
       }
-      return 255; // Возвращаем -1, если не найден
+      return 255;
     }
 
     bool logoanim1stframe = true;
@@ -318,7 +386,7 @@ class AxiusSSD {
     void (*onIncomingPacket)(esppl_frame_info *info);
 
     const int epd_bitmap_allArray_LEN = 31;  
-    const unsigned char* epd_bitmap_allArray[31] = {
+    const uint8_t* epd_bitmap_allArray[31] = {
       epd_bitmap_aspose_video_133626583510124466_out_000,
       epd_bitmap_aspose_video_133626583510124466_out_001,
       epd_bitmap_aspose_video_133626583510124466_out_002,
@@ -351,6 +419,13 @@ class AxiusSSD {
       epd_bitmap_aspose_video_133626583510124466_out_029,
       epd_bitmap_aspose_video_133626583510124466_out_030
     };
+
+    uint8_t keyboardLimit, keyboardCurrentKey;
+    String keyboardUserInput = "";
+    String keyboardInfo1 = "";
+    String keyboardInfo2 = "";
+    const static uint8_t keyboardLettersSize = 42;
+    bool keyboardBack = false, keyboardNext = false;
 };
 
 #endif

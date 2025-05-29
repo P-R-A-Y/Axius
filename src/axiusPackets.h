@@ -10,7 +10,7 @@
 #define AXIUSPACKETS_H
 
 #include <map>
-#include "globalstructures.h"
+#include "common_utilities.h"
 
 class AxiusPacket {
   public:

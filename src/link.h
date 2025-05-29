@@ -1,7 +1,6 @@
 #ifndef Link_H
 #define Link_H
 
-#include <Arduino.h>
 #include <vector>
 #include "mod_class.h"
 #include "axiusPackets.h"
@@ -15,6 +14,7 @@ struct Device {
 
 class Link : public Mod {
 public:
+  Link(AxiusSSD* axiusInstance) : Mod(axiusInstance) {};
   String getName() override;
   void firsttick() override;
   void setup() override;

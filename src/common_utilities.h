@@ -1,14 +1,19 @@
-#include <Arduino.h>
-
 #pragma once
+//.................................
+#ifdef USE_SH110X
+#include <Adafruit_SH110X.h>
+#else
+#include <Adafruit_SSD1306.h>
+#endif
+//.................................
+
 struct ShortPacket {
   uint8_t receiveraddr[6];
   uint8_t sourceaddr[6];
   int8_t channel;
 };
 
-#pragma once
-const char substrings[111] = {
+const char substrings[] PROGMEM = {
   '0','1','2','3','4','5','6','7','8','9',
   'a','b','c','d','e','f','g','h','i','j',
   'k','l','m','n','o','p','q','r','s','t',
@@ -22,8 +27,7 @@ const char substrings[111] = {
   '2','4','3','5','4','6','5','7','6','8',
   '0'};
 
-#pragma once
-const uint8_t beaconPacketTemplate[109] = {
+const uint8_t beaconPacketTemplate[] PROGMEM = {
     /*  0 - 3  */ 0x80, 0x00, 0x00, 0x00,             // Type/Subtype/duration/duration: managment beacon frame
     /*  4 - 9  */ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // Destination: broadcast
     /* 10 - 15 */ 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Source
@@ -69,8 +73,7 @@ const uint8_t beaconPacketTemplate[109] = {
     /* 107 - 108 */ 0x00, 0x00
 };
 
-#pragma once
-const uint8_t pseudoRealisticHeader[28] = {
+const uint8_t pseudoRealisticHeader[] PROGMEM = {
   /*  0 - 1  */ 0xC0, 0x00,                          // type, subtype
   /*  2 - 3  */ 0x00, 0x00,                          // duration (SDK takes care of that)
   /*  4 - 9  */ 0xFA, 0xBA, 0xCA, 0xBA, 0x08, 0x01,  // reciever (target)
@@ -80,44 +83,49 @@ const uint8_t pseudoRealisticHeader[28] = {
   /* 24 25 26 27 */ 0x00, 0x00, 0x00, 0x00,          // data size, packet type, packet id, device id
 };
 
-#pragma once
+String strmac(uint8_t* mac);
+
+String readProgMemString(const char* str);
+
+const uint8_t BAD_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+bool ismacgood(const uint8_t* arr);
+
+bool ismaclike(const uint8_t* cur, const uint8_t* tar);
+
+float normalize(float min, float max, float current);
+
+float lerp(float min, float max, float curNorm);
+
 void stringToUint8Array(const String &str, uint8_t *array, size_t arraySize);
 
-#pragma once
 String uint8ArrayToString(uint8_t *array, size_t arraySize);
 
-#pragma once
 void writeCharArrayToUint8Array(char* charArray, size_t charSize, uint8_t* uint8Array, size_t startAddress);
 
-#pragma once
 void readUint8ArrayToCharArray(uint8_t* uint8Array, size_t startAddress, char* charArray, size_t charSize);
 
-#pragma once
 bool comparePrefix(char* prefix1, char* prefix2);
 
-#pragma once
+String uint64_tToString(uint64_t ll);
+
 struct Point {
   float x;
   float y;
 };
 
-#pragma once
 struct Location {
   String name;
   Point point;
 };
 
-#pragma once
 struct LootBlock {
   uint8_t money;
   Point point;
   float radius;
 };
 
-#pragma once
 bool blinkNow(uint16_t timeScale);
 
-#pragma once
 class BeaconPacketConstructor {
   public:
     /*~BeaconPacketConstructor() { this is ass
@@ -144,7 +152,6 @@ class BeaconPacketConstructor {
     uint8_t nameSize, packetSize, channel;
 };
 
-#pragma once
 class BoolPack {
 public:
   BoolPack(uint8_t prototype) : data(prototype) {}
@@ -152,15 +159,15 @@ public:
   void setBool(uint8_t index, bool value) {
     if (index < 8) {
       if (value) {
-        data |= (1 << 7-index);
+        data |= ((1 << 7)-index);
       } else {
-        data &= ~(1 << 7-index);
+        data &= ~((1 << 7)-index);
       }
     }
   }
   bool getBool(uint8_t index) const {
     if (index < 8) {
-      return data & (1 << 7-index);
+      return data & ((1 << 7)-index);
     }
     return false;
   }
@@ -172,4 +179,35 @@ public:
   }
 private:
   uint8_t data;
+};
+
+
+class IconProvider {
+public:
+  IconProvider() {};
+
+  void setSize(uint8_t width, uint8_t height) {
+    this->width  = width;
+    this->height = height;
+  }
+
+  void    setPic    (const uint8_t* pic) {     this->pic = pic;     };
+  void    setEnabled(   bool enabled   ) { this->enabled = enabled; };
+  bool    getEnabled()                   {     return enabled;      };
+  uint8_t getHeight ()                   {      return height;      };
+  uint8_t getWidth  ()                   {      return width;       };
+
+#if defined(USE_SH110X)
+  void render(Adafruit_SH1106G* display,
+#else
+  void render(Adafruit_SSD1306* display,
+#endif
+  uint8_t x, uint8_t y) {
+    display->drawBitmap(x, y, pic, width, height, WHITE);
+  }
+
+private:
+  uint8_t width, height;
+  const uint8_t* pic = nullptr;
+  bool enabled = false;
 };

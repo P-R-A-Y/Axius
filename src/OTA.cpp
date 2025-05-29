@@ -1,7 +1,6 @@
 #include <AxiusSSD.h>
 #include "OTA.h"
 
-OTA::OTA() {}
 void OTA::setup() {}
 void OTA::firsttick() {state = 0;}
 
@@ -14,24 +13,24 @@ void OTA::firsttick() {state = 0;}
 
 void OTA::tick() {
   if (state == 0) {
-    AxiusSSD::instance->drawText("up - continue", 0);
-    AxiusSSD::instance->drawText("ok - exit", 1);
-    if (AxiusSSD::instance->readok()) AxiusSSD::instance->tomenu();
-    else if (AxiusSSD::instance->readup()) state = 1;
+    axius->drawText("up - continue", 0);
+    axius->drawText("ok - exit", 1);
+    if (axius->clickZ()) axius->tomenu();
+    else if (axius->clickX()) state = 1;
   } else if (state == 1) {
-    AxiusSSD::instance->drawText("preparing", 0);
-    AxiusSSD::instance->stopPacketListening();
+    axius->drawText("preparing", 0);
+    axius->disableWIFI();
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
     state = 2;
   } else if (state == 2) {
     if (WiFi.waitForConnectResult(300) != WL_CONNECTED) {
-      AxiusSSD::instance->drawText("waiting for wifi", 0);
-      AxiusSSD::instance->drawText("with name \""+ssid+"\"", 1);
-      AxiusSSD::instance->drawText("and password \""+password+"\"", 1);
+      axius->drawText("waiting for wifi", 0);
+      axius->drawText("with name \""+ssid+"\"", 1);
+      axius->drawText("and password \""+password+"\"", 1);
     } else {
       state = 3;
-      ArduinoOTA.setHostname(AxiusSSD::instance->deviceName.c_str());
+      ArduinoOTA.setHostname(axius->deviceName.c_str());
       ArduinoOTA.setPassword("AXIUS");
     }
   } else if (state == 3) {
@@ -76,8 +75,8 @@ void OTA::tick() {
 
 #else
 void OTA::tick() {
-  AxiusSSD::instance->drawText("unsupported", 0);
-  AxiusSSD::instance->drawText("ok - exit", 1);
-  if (AxiusSSD::instance->readok()) AxiusSSD::instance->tomenu();
+  axius->drawText("unsupported", 0);
+  axius->drawText("ok - exit", 1);
+  if (axius->clickZ()) axius->tomenu();
 }
 #endif

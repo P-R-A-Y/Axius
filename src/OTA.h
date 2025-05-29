@@ -2,7 +2,7 @@
 
 class OTA : public Mod {
 public:
-  OTA();
+  OTA(AxiusSSD* axiusInstance) : Mod(axiusInstance) {};
   void tick() override;
   void firsttick() override;
   void setup() override;
