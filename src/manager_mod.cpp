@@ -60,8 +60,15 @@ void ManagerMod::loadSavedData() {
 }
 
 void ManagerMod::setup() {
-  checkmem();
   loadSavedData();
+
+  if (beaconmode.curval) {
+    if (readEEPROM(4) != 0x42) {
+      setParameterBool(beaconmode.name, false);
+      axius->restart();
+    }
+  }
+  
 
   icon.setSize(13, 7);
   icon.setEnabled(true);
@@ -165,6 +172,8 @@ void ManagerMod::tick() {
           String ns = "RAM rot: ";
           ns += String((uintptr_t)ptr, HEX);
           statepick[9] = ns;
+        } else if (cursor == 11) {
+          state = 52;
         }
       }
       for (byte i = startpos; i < startpos + (statepick.size() < 5 ? statepick.size() : 5); i++) {
@@ -184,6 +193,22 @@ void ManagerMod::tick() {
     axius->keyboardRender();
     if (axius->isKeyboardBack()) state = 0;
     if (axius->isKeyboardNext()) state = 0;
+  } else if (state == 52) {
+    axius->drawTextMiddle("Enter BEACON mode?", 0);
+    axius->drawTextMiddle("[Z] - Enter", 1);
+
+    axius->drawTextMiddle("Remember:", 3);
+    axius->drawTextMiddle("Hold [Z] to exit", 4);
+    axius->drawTextMiddle("the beacon mode", 5);
+    if (axius->clickZ()) {
+      writeEEPROM(4, 0x42);
+      setParameterBool(beaconmode.name, true);
+      axius->display.ssd1306_command(0xAE);
+      for (Module* module : axius->modules) {
+        module->disconnect();
+      }
+      axius->forceRestart();
+    }
   } else if (state == 2) {
     axius->drawText("ok - exit", 0);
     axius->drawText("list of modules", 1);
@@ -287,7 +312,7 @@ void ManagerMod::tick() {
       }
 
       uint8_t before = readEEPROM(memcheckaddr);
-      writeEEPROM(memcheckaddr, before++);
+      writeEEPROM(memcheckaddr, before+1);
       writeEEPROM(memcheckaddr, before);
 
       memcheckaddr++;

@@ -14,7 +14,7 @@ struct Device {
 
 class Link : public Mod {
 public:
-  Link(AxiusSSD* axiusInstance) : Mod(axiusInstance) {};
+  Link(AxiusSSD* axiusInstance, uint16_t ID) : Mod(axiusInstance, ID) {};
   String getName() override;
   void firsttick() override;
   void setup() override;
@@ -23,6 +23,7 @@ public:
   void supertick();
   void onPacket(uint8_t* frame, int rssi);
   bool sendPacket(AxiusPacket* p);
+  void sendSomeElectronsIntoTheAir(String deviceName, uint8_t deviceID);
   Device* getDevice(uint8_t id) {
     for (uint8_t i = 0; i < nearbyDevices.size(); i++) {
       if (nearbyDevices[i].id == id) return &nearbyDevices[i];

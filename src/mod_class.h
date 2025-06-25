@@ -22,7 +22,7 @@ private:
 
 class About : public Mod {
 public:
-  About(AxiusSSD* parent) : Mod(parent) {};
+  About(AxiusSSD* axiusInstance, uint16_t ID) : Mod(axiusInstance, ID) {};
   void tick() override;
   void firsttick() override;
   void setup() override;

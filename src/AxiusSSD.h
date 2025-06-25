@@ -288,7 +288,7 @@ class AxiusSSD {
     void tomenu();
     void toerror();
     void restart();
-    void forceRestart();
+    void forceRestart() { ESP.restart(); };
     void disableWIFI();
     void enableWIFI();
     bool sendWifiFrame(uint8_t *buf, int len);

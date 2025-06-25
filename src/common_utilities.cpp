@@ -137,6 +137,18 @@ bool comparePrefix(char* prefix1, char* prefix2) {
   return true;
 }
 
+char* uint8ArrayToCharArray(uint8_t *array, size_t arraySize) {
+  char* charstring = new char[arraySize+1];
+
+  for (size_t i = 0; i < arraySize; i++) {
+    charstring[i] = static_cast<char>(array[i]);
+  }
+
+  charstring[arraySize] = 0;
+
+  return charstring;
+}
+
 String uint8ArrayToString(uint8_t *array, size_t arraySize) {
   String result = "";
   for (size_t i = 0; i < arraySize; i++) {

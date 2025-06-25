@@ -8,6 +8,7 @@ public:
   Module();
   virtual void update() = 0;
   virtual void connect() = 0;
+  virtual void disconnect() = 0;
   virtual String getName() = 0;
   bool isConnected() { return connected; };
   void setConnected(bool c) { connected = c; };

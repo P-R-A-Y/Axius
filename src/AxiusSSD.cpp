@@ -46,6 +46,25 @@ void AxiusSSD::begin(String devname, MemoryChip c, float nmaxAfkSeconds , const 
     invertButtonReadMethod = true;
     pinMode(okb, INPUT_PULLUP);
   }
+  MGR.checkmem();
+  Serial.println(MGR.readEEPROM(4));
+  if (MGR.readEEPROM(4) == 0x42) {
+    int volt = digitalRead(okb);
+    bool disable = false;
+    if (invertButtonReadMethod) {
+      if (volt == LOW) disable = true;
+    } else {
+      if (volt == HIGH) disable = true;
+    }
+    if (disable) {
+      MGR.writeEEPROM(4, 0x00);
+    } else {
+      link.sendSomeElectronsIntoTheAir(devname, 200);
+      ESP.deepSleep(1e6 * 5);
+      return;
+    }
+  }
+  
   deviceName = devname;
   chip = c;
   maxAfkSeconds = nmaxAfkSeconds;

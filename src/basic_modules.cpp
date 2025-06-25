@@ -28,8 +28,8 @@ void GyroscopeModule::update() {
 }
 
 void GyroscopeModule::connect() {
-  int err = IMU.init(calib, IMU_ADDRESS);
-  setConnected(err == 0);
+  error = IMU.init(calib, 0x68);
+  setConnected(error == 0);
   if (!isConnected()) {
     temperature = 28.0f;
   } else {
@@ -51,4 +51,8 @@ void VoltmeterModule::update() {
 
 void VoltmeterModule::connect() {
   setConnected(ina219.begin());
+}
+
+void VoltmeterModule::disconnect() {
+  ina219.powerSave(true);
 }

@@ -8,10 +8,18 @@ String Link::getName() {
 void Link::firsttick() {
 
 };
+
 void Link::setup() {
   finalBeaconPacket.broadcasterId = axius->MGR.getParameterByte("deviceId", 255);
   finalBeaconPacket.devtype = axius->deviceName;
 };
+
+void Link::sendSomeElectronsIntoTheAir(String deviceName, uint8_t deviceID) {
+  finalBeaconPacket.broadcasterId = deviceID;
+  finalBeaconPacket.devtype = deviceName;
+  sendPacket(&finalBeaconPacket);
+}
+
 void Link::tick() {
   axius->updateScreen = true;
   if (state == 0) {

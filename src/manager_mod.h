@@ -109,7 +109,7 @@ public:
 
 class ManagerMod : public Mod {
 public:
-  ManagerMod(AxiusSSD* axiusInstance) : Mod(axiusInstance) {};
+  ManagerMod(AxiusSSD* axiusInstance, uint16_t ID) : Mod(axiusInstance, ID) {};
   void setup() override;
   String getName() override { return "System"; };
   void tick() override;
@@ -138,17 +138,26 @@ public:
   BoolParameter  version    {"v1?", true};
   ByteParameter  cs         {"cursor", 0};
   ByteParameter  devid      {"deviceId", uint8_t(random(256))};
+  /*
+  special ids:
+  0 - 
+  200 - device in beacon mode
+  254 - 
+  255 - eeprom error
+  */
   BoolParameter  mbu        {"modBackUp", false};
   BoolParameter  cim        {"crashedInMod", false};
   BoolParameter  ucf        {"useCursedFont", false};
   ByteParameter  contrast   {"displayContrast", 100};
-  ReservedMemory res        {"reserved", 10};
+  BoolParameter  beaconmode {"isInBeaconMode", false};
+  ReservedMemory res        {"reserved", 9};
 
-  std::vector<Parameter*> settings { &exit, &version, &cs, &devid, &mbu, &cim, &ucf, &contrast, &res };
+  std::vector<Parameter*> settings { &exit, &version, &cs, &devid, &mbu, &cim, &ucf, &contrast, &beaconmode, &res };
 
   IconProvider icon;
-private:
   void checkmem();
+private:
+  
   void loadSavedData();
 
   uint32_t lastMemRead = 0, lastMemWrite = 0;
@@ -156,7 +165,7 @@ private:
   uint16_t memcheckaddr = 0, memcheckaddrmax = 0, curaddress = 0;
   bool fixedOnParameter = false, dim = false, memoryWorking = false;
   uint8_t state = 0, cursor = 0, startpos = 0, mcursor = 0, mstartpos = 0;
-  std::vector<String> statepick {"exit", "parameters", "restart", "eeprom test", "modules", "switch font", "contrast: ", "switch dimming", "keyboard test", "RAM rot: x", "" };
+  std::vector<String> statepick {"exit", "parameters", "restart", "eeprom test", "modules", "switch font", "contrast: ", "switch dimming", "keyboard test", "RAM rot: x", "", "beacon mode" };
   bool ignoreBrokenMemory = false;
 
   const uint8_t* IMAGEBUFFER_1[5] = {

@@ -96,6 +96,8 @@ float normalize(float min, float max, float current);
 
 float lerp(float min, float max, float curNorm);
 
+char* uint8ArrayToCharArray(uint8_t *array, size_t arraySize);
+
 void stringToUint8Array(const String &str, uint8_t *array, size_t arraySize);
 
 String uint8ArrayToString(uint8_t *array, size_t arraySize);
